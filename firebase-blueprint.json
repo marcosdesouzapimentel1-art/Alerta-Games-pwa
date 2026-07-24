@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "users": {
+      "title": "Users",
+      "description": "User profiles and app preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "gamePreferences": { "type": "array", "items": { "type": "string" } },
+        "favoriteCategories": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "favorites": {
+      "title": "Favorites",
+      "description": "User saved coupons, deals, news, and free games",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["news", "free_game", "deal", "coupon"] },
+        "itemId": { "type": "string" },
+        "title": { "type": "string" },
+        "image": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "itemId", "type"]
+    },
+    "fcm_tokens": {
+      "title": "FCM Tokens",
+      "description": "User push notification registration tokens",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "token": { "type": "string" },
+        "platform": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["token", "updatedAt"]
+    },
+    "news": {
+      "title": "News",
+      "description": "Automated gaming news collection",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "image": { "type": "string" },
+        "content": { "type": "string" },
+        "source": { "type": "string" },
+        "author": { "type": "string" },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "url": { "type": "string" }
+      },
+      "required": ["id", "title", "summary", "publishedAt", "category"]
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "App notifications sent to users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "image": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" },
+        "url": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "message", "category", "createdAt", "read"]
+    },
+    "notification_preferences": {
+      "title": "Notification Preferences",
+      "description": "User custom alert toggles per category",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fcmEnabled": { "type": "boolean" },
+        "categories": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "categories"]
+    },
+    "coupons": {
+      "title": "Coupons",
+      "description": "Store discount coupons",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "store": { "type": "string" },
+        "title": { "type": "string" },
+        "code": { "type": "string" },
+        "discount": { "type": "string" },
+        "category": { "type": "string" },
+        "expirationDate": { "type": "string" },
+        "affiliateUrl": { "type": "string" },
+        "image": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "store", "title", "discount", "category", "active"]
+    },
+    "free_games": {
+      "title": "Free Games",
+      "description": "Free games promotions from Epic Games, Steam, GOG, etc.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "image": { "type": "string" },
+        "platform": { "type": "string" },
+        "store": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "url": { "type": "string" },
+        "affiliateUrl": { "type": "string" },
+        "status": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "store", "url", "status", "active"]
+    },
+    "deals": {
+      "title": "Promotions / Deals",
+      "description": "Game and hardware deals across categories",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productTitle": { "type": "string" },
+        "category": { "type": "string" },
+        "store": { "type": "string" },
+        "oldPrice": { "type": "number" },
+        "currentPrice": { "type": "number" },
+        "discountPercent": { "type": "number" },
+        "image": { "type": "string" },
+        "link": { "type": "string" },
+        "affiliateUrl": { "type": "string" },
+        "expirationDate": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "productTitle", "category", "store", "oldPrice", "currentPrice", "discountPercent", "link", "active"]
+    },
+    "admin_logs": {
+      "title": "Admin Logs",
+      "description": "Audit logs for administrative actions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "action", "target", "timestamp"]
+    }
+  }
+}

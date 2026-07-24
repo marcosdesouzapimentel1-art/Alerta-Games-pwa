@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         request.auth.token.email == 'marcosdesouzapimentel1@gmail.com');
+    }
+
+    // Users collection - owner or admin can read/write
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // Admin Logs collection - admin read / write, or authenticated create for audit logs
+    match /admin_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Favorites collection - user can only read/write their own favorites
+    match /favorites/{favoriteId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Push notification tokens collection
+    match /fcm_tokens/{tokenId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Notifications collection - user can read own/global notifications, create/update as needed
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'global');
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Notification preferences collection
+    match /notification_preferences/{prefId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // News collection - public read, write for authenticated users/sync, delete for admin
+    match /news/{newsId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // News sync logs - public read, write for authenticated users
+    match /news_sync_logs/{logId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Coupons collection - public read, write for authenticated users/sync, delete for admin
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Free Games collection - public read, write for authenticated users/sync, delete for admin
+    match /free_games/{gameId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    match /freeGames/{gameId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Deals / Promotions collection - public read, write for authenticated users/sync, delete for admin
+    match /deals/{dealId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Default catch-all: deny unhandled collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

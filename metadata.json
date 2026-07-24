@@ -1,0 +1,6 @@
+{
+  "name": "Alerta Game",
+  "description": "Progressive Web App de notícias, promoções, lançamentos e alertas do universo gamer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
