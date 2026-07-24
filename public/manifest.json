@@ -1,0 +1,51 @@
+{
+  "name": "Alerta Game – Notícias e Alertas Gamer",
+  "short_name": "Alerta Game",
+  "description": "Seu PWA definitivo com notícias do mundo dos jogos, promoções relâmpago, lançamentos e alertas em tempo real.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090d16",
+  "theme_color": "#0f172a",
+  "categories": ["games", "news", "entertainment", "shopping"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Últimas Notícias",
+      "short_name": "Notícias",
+      "description": "Veja as principais notícias e análises de jogos",
+      "url": "/?view=inicio",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Promoções Relâmpago",
+      "short_name": "Ofertas",
+      "description": "Confira os melhores descontos da Steam, PS Store e Xbox",
+      "url": "/?view=categorias&cat=ofertas",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Pesquisar Jogos",
+      "short_name": "Buscar",
+      "description": "Pesquise notícias, jogos e promoções",
+      "url": "/?view=pesquisa",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

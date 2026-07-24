@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#ef4444" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#06b6d4" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded Square Card Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="url(#accent)" stroke-width="4" stroke-opacity="0.4"/>
+  
+  <!-- Gamepad Shape -->
+  <g filter="url(#shadow)">
+    <!-- Controller Body -->
+    <path d="M 140 180 C 180 160, 332 160, 372 180 C 420 200, 440 310, 400 350 C 370 380, 330 360, 300 320 L 280 295 C 265 280, 247 280, 232 295 L 212 320 C 182 360, 142 380, 112 350 C 72 310, 92 200, 140 180 Z" fill="url(#accent)"/>
+    
+    <!-- D-Pad -->
+    <rect x="155" y="220" width="16" height="48" rx="4" fill="#ffffff" />
+    <rect x="139" y="236" width="48" height="16" rx="4" fill="#ffffff" />
+    
+    <!-- Action Buttons -->
+    <circle cx="340" cy="225" r="10" fill="#ffffff"/>
+    <circle cx="365" cy="245" r="10" fill="#ffffff"/>
+    <circle cx="315" cy="245" r="10" fill="#ffffff"/>
+    <circle cx="340" cy="265" r="10" fill="#ffffff"/>
+  </g>
+  
+  <!-- Bell / Alert Badge in Corner -->
+  <g transform="translate(320, 100)">
+    <circle cx="60" cy="60" r="50" fill="url(#glow)"/>
+    <path d="M 60 30 C 48 30, 40 38, 40 50 L 40 68 L 32 76 L 32 80 L 88 80 L 88 76 L 80 68 L 80 50 C 80 38, 72 30, 60 30 Z M 52 84 C 52 88, 55 92, 60 92 C 65 92, 68 88, 68 84 Z" fill="#ffffff"/>
+  </g>
+</svg>
