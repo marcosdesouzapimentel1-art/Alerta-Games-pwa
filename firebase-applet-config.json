@@ -3,7 +3,7 @@
   "appId": "1:747965079617:web:960a0391b17c9f52fee6c0",
   "apiKey": "AIzaSyAXMg-Cl8hk7JA5SZpBPZ2bG-u90fLJzdA",
   "authDomain": "alerta-game.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-alertagame-c357c188-12c7-4da8-8963-ab110a94faad",
+  "firestoreDatabaseId": "default",
   "storageBucket": "alerta-game.firebasestorage.app",
   "messagingSenderId": "747965079617",
   "measurementId": "G-G0PGX2W2TJ",
