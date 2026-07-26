@@ -1,12 +1,12 @@
 {
-  "projectId": "gen-lang-client-0258241540",
-  "appId": "1:844000778208:web:db23874db25c4985dc3d85",
-  "apiKey": "AIzaSyBaXrKXKiiZItK-KokI42O2edeXBohAL60",
-  "authDomain": "gen-lang-client-0258241540.firebaseapp.com",
+  "projectId": "alerta-game",
+  "appId": "1:747965079617:web:960a0391b17c9f52fee6c0",
+  "apiKey": "AIzaSyAXMg-Cl8hk7JA5SZpBPZ2bG-u90fLJzdA",
+  "authDomain": "alerta-game.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-alertagame-c357c188-12c7-4da8-8963-ab110a94faad",
-  "storageBucket": "gen-lang-client-0258241540.firebasestorage.app",
-  "messagingSenderId": "844000778208",
-  "measurementId": "",
+  "storageBucket": "alerta-game.firebasestorage.app",
+  "messagingSenderId": "747965079617",
+  "measurementId": "G-G0PGX2W2TJ",
   "oAuthClientId": "844000778208-50prj3diboarbn77159j8ukmk5q49vfd.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }
