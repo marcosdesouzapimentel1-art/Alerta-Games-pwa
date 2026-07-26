@@ -18,22 +18,33 @@ import { UserProfile, GamerInterest } from '../types';
 
 const googleProvider = new GoogleAuthProvider();
 
+const ADMIN_EMAILS = [
+  'marcosdesouzapimentel1@gmail.com',
+  'marcos.pimentel@alertagame.app',
+  'admin@alertagame.com.br',
+  'admin@alertagame.com',
+];
+
 /**
  * Ensure user document exists in Firestore /users/{uid}
  */
 export const syncUserProfile = async (user: User, customDisplayName?: string): Promise<UserProfile> => {
   try {
     const existing = await getDocument<UserProfile>('users', user.uid);
+    const userEmail = (user.email || existing?.email || '').toLowerCase().trim();
+    const isAdminEmail = ADMIN_EMAILS.includes(userEmail);
 
     if (existing) {
-      // If user profile exists, update displayName or photoURL if changed, keep existing role (defaulting to 'user' if undefined)
+      // If user profile exists, update displayName or photoURL if changed, grant 'admin' if email is in ADMIN_EMAILS list
+      const targetRole = existing.role === 'admin' || isAdminEmail ? 'admin' : (existing.role || 'user');
+
       const updatedProfile: UserProfile = {
         ...existing,
         uid: user.uid,
         email: user.email || existing.email || '',
         displayName: customDisplayName || user.displayName || existing.displayName || 'Gamer',
         photoURL: user.photoURL || existing.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
-        role: existing.role || 'user',
+        role: targetRole,
         gamePreferences: existing.gamePreferences || ['PlayStation', 'PC', 'GTA 6', 'Steam', 'Game Pass'],
         favoriteCategories: existing.favoriteCategories || ['Todas'],
         // Compatibility properties
@@ -41,20 +52,21 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
         gamerTag: existing.gamerTag || `Gamer#${user.uid.slice(0, 4)}`,
         avatarUrl: user.photoURL || existing.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
         xpLevel: existing.xpLevel || 1,
-        title: existing.title || 'Iniciante Gamer',
+        title: existing.title || (targetRole === 'admin' ? 'Administrador Alerta Game' : 'Iniciante Gamer'),
         joinedDate: existing.joinedDate || new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
       };
       await setDocument('users', user.uid, updatedProfile, true);
       return updatedProfile;
     }
 
-    // Create new profile - ALWAYS role: 'user'
+    // Create new profile
+    const targetRole = isAdminEmail ? 'admin' : 'user';
     const newProfile: UserProfile = {
       uid: user.uid,
       email: user.email || '',
       displayName: customDisplayName || user.displayName || 'Gamer Alerta',
       photoURL: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
-      role: 'user',
+      role: targetRole,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       gamePreferences: ['PlayStation', 'PC', 'GTA 6', 'Steam', 'Game Pass'],
@@ -63,7 +75,7 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
       gamerTag: `Gamer#${Math.floor(1000 + Math.random() * 9000)}`,
       avatarUrl: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
       xpLevel: 1,
-      title: 'Iniciante Gamer',
+      title: targetRole === 'admin' ? 'Administrador Alerta Game' : 'Iniciante Gamer',
       joinedDate: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
     };
 
@@ -71,13 +83,17 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
     return newProfile;
   } catch (error) {
     console.error('Error syncing user profile:', error);
+    const userEmail = (user.email || '').toLowerCase().trim();
+    const isAdminEmail = ADMIN_EMAILS.includes(userEmail);
+    const targetRole = isAdminEmail ? 'admin' : 'user';
+
     // Fallback profile if offline
     return {
       uid: user.uid,
       email: user.email || '',
       displayName: customDisplayName || user.displayName || 'Gamer',
       photoURL: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
-      role: 'user',
+      role: targetRole,
       createdAt: new Date().toISOString(),
       gamePreferences: ['PlayStation', 'PC', 'GTA 6', 'Steam', 'Game Pass'],
       favoriteCategories: ['Todas'],
@@ -85,7 +101,7 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
       gamerTag: 'GamerAlert#2026',
       avatarUrl: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
       xpLevel: 1,
-      title: 'Iniciante Gamer',
+      title: targetRole === 'admin' ? 'Administrador Alerta Game' : 'Iniciante Gamer',
       joinedDate: 'Hoje',
     };
   }
