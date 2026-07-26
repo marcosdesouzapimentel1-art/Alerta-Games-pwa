@@ -12,20 +12,20 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         request.auth.token.email == 'marcosdesouzapimentel1@gmail.com');
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Users collection - owner or admin can read/write
+    // Users collection - owner or admin can read; owner can create with role 'user'; owner can update if role field is unchanged; admin can read/write any user
     match /users/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.role == 'user';
+      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
     }
 
-    // Admin Logs collection - admin read / write, or authenticated create for audit logs
+    // Admin Logs collection - strictly admin
     match /admin_logs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     // Favorites collection - user can only read/write their own favorites
@@ -40,11 +40,11 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    // Notifications collection - user can read own/global notifications, create/update as needed
+    // Notifications collection - user can read own/global notifications; admin creates; user/admin can update or delete own
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'global');
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update, delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
     // Notification preferences collection
@@ -52,45 +52,39 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    // News collection - public read, write for authenticated users/sync, delete for admin
+    // News collection - public read, write strictly for admin
     match /news/{newsId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // News sync logs - public read, write for authenticated users
+    // News sync logs - public read, write strictly for admin
     match /news_sync_logs/{logId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Coupons collection - public read, write for authenticated users/sync, delete for admin
+    // Coupons collection - public read, write strictly for admin
     match /coupons/{couponId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Free Games collection - public read, write for authenticated users/sync, delete for admin
+    // Free Games collection - public read, write strictly for admin
     match /free_games/{gameId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     match /freeGames/{gameId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // Deals / Promotions collection - public read, write for authenticated users/sync, delete for admin
+    // Deals / Promotions collection - public read, write strictly for admin
     match /deals/{dealId} {
       allow read: if true;
-      allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     // Default catch-all: deny unhandled collections

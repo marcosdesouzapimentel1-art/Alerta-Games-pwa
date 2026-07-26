@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 export const AdminView: React.FC = () => {
-  const { user, userProfile, isAdmin, setUserRole } = useAuth();
+  const { user, userProfile, isAdmin } = useAuth();
   const { setActiveTab } = useApp();
 
   const [activeAdminTab, setActiveAdminTab] = useState<
@@ -110,17 +110,9 @@ export const AdminView: React.FC = () => {
                   {userProfile?.role || 'user'}
                 </span>
               </div>
-
-              <button
-                onClick={async () => {
-                  await setUserRole('admin');
-                  await loadStats();
-                }}
-                className="w-full py-2.5 mt-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Promover para Admin (Modo Desenvolvedor)</span>
-              </button>
+              <p className="text-[11px] text-slate-400 pt-1 leading-relaxed border-t border-slate-900">
+                Sua conta possui acesso de usuário comum. O acesso ao Painel Admin é concedido exclusivamente definindo o campo <code className="text-cyan-400 font-mono">role: "admin"</code> no documento da coleção <code className="text-cyan-400 font-mono">users/{'{uid}'}</code> via Firestore ou por outro Administrador.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">

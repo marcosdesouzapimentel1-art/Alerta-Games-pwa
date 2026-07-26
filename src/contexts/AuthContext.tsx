@@ -43,6 +43,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const profile = await syncUserProfile(currentUser);
           setUserProfile(profile);
+
+          // Runtime Authentication Audit Log
+          const isAdminCalculated = profile?.role === 'admin';
+          const reason = profile?.role === 'admin'
+            ? 'O campo userProfile.role no documento Firestore é igual a "admin".'
+            : `O campo userProfile.role no documento Firestore é "${profile?.role || 'user'}" (diferente de "admin").`;
+
+          console.group('🔍 AUDITORIA DE AUTENTICAÇÃO EM TEMPO DE EXECUÇÃO');
+          console.log('1. UID do usuário autenticado:', currentUser.uid);
+          console.log('2. E-mail do usuário:', currentUser.email || '(sem e-mail)');
+          console.log('3. Caminho completo do documento Firestore:', `users/${currentUser.uid}`);
+          console.log('4. Conteúdo completo do documento:', profile);
+          console.log('5. Valor exato de userProfile.role:', profile?.role);
+          console.log('6. Valor exato de isAdmin:', isAdminCalculated);
+          console.log('7. Motivo de isAdmin:', reason);
+          console.groupEnd();
         } catch (error) {
           console.error('Failed to sync profile:', error);
         }
@@ -117,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile((prev) => prev ? { ...prev, ...data } : null);
   };
 
-  const isAdmin = userProfile?.role === 'admin' || (!!user?.email && (user.email.toLowerCase().includes('admin') || user.email === 'marcosdesouzapimentel1@gmail.com'));
+  const isAdmin = userProfile?.role === 'admin';
 
   const setUserRole = async (role: 'user' | 'admin') => {
     if (!user) return;

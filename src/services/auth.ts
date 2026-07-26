@@ -24,17 +24,16 @@ const googleProvider = new GoogleAuthProvider();
 export const syncUserProfile = async (user: User, customDisplayName?: string): Promise<UserProfile> => {
   try {
     const existing = await getDocument<UserProfile>('users', user.uid);
-    const defaultRole: 'user' | 'admin' = (user.email && user.email.toLowerCase().includes('admin')) || user.email === 'marcosdesouzapimentel1@gmail.com' ? 'admin' : 'user';
 
     if (existing) {
-      // If user profile exists, update displayName or photoURL if changed
+      // If user profile exists, update displayName or photoURL if changed, keep existing role (defaulting to 'user' if undefined)
       const updatedProfile: UserProfile = {
         ...existing,
         uid: user.uid,
         email: user.email || existing.email || '',
         displayName: customDisplayName || user.displayName || existing.displayName || 'Gamer',
         photoURL: user.photoURL || existing.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
-        role: existing.role || defaultRole,
+        role: existing.role || 'user',
         gamePreferences: existing.gamePreferences || ['PlayStation', 'PC', 'GTA 6', 'Steam', 'Game Pass'],
         favoriteCategories: existing.favoriteCategories || ['Todas'],
         // Compatibility properties
@@ -49,13 +48,13 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
       return updatedProfile;
     }
 
-    // Create new profile
+    // Create new profile - ALWAYS role: 'user'
     const newProfile: UserProfile = {
       uid: user.uid,
       email: user.email || '',
       displayName: customDisplayName || user.displayName || 'Gamer Alerta',
       photoURL: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
-      role: defaultRole,
+      role: 'user',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       gamePreferences: ['PlayStation', 'PC', 'GTA 6', 'Steam', 'Game Pass'],
@@ -78,7 +77,7 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
       email: user.email || '',
       displayName: customDisplayName || user.displayName || 'Gamer',
       photoURL: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
-      role: 'admin', // default to admin in fallback for admin testing if needed
+      role: 'user',
       createdAt: new Date().toISOString(),
       gamePreferences: ['PlayStation', 'PC', 'GTA 6', 'Steam', 'Game Pass'],
       favoriteCategories: ['Todas'],
@@ -86,7 +85,7 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
       gamerTag: 'GamerAlert#2026',
       avatarUrl: user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
       xpLevel: 1,
-      title: 'Gamer VIP',
+      title: 'Iniciante Gamer',
       joinedDate: 'Hoje',
     };
   }
