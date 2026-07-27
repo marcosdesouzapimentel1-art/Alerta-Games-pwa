@@ -3,12 +3,19 @@ import { NewsArticle, NewsCategory } from '../../types';
 export interface SyncLog {
   id: string;
   timestamp: string;
+  startTime?: string;
+  endTime?: string;
   sourcesAttempted: number;
   sourcesSuccessful: string[];
   sourcesFailed: { source: string; error: string }[];
+  articlesFound?: number;
   newArticlesCount: number;
+  duplicatesCount?: number;
+  errorsCount?: number;
   totalArticlesCount: number;
   trigger: 'automatic' | 'manual' | 'initial';
+  adminUid?: string;
+  adminEmail?: string;
 }
 
 export interface NewsSourceAdapter {

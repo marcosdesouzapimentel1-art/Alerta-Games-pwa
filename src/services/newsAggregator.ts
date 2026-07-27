@@ -83,7 +83,11 @@ class NewsAggregatorService {
    * Main aggregation & sync function:
    * Fetches articles from all adapters, removes duplicates, and saves new ones to Firestore.
    */
-  public async runSync(trigger: 'automatic' | 'manual' | 'initial' = 'manual'): Promise<SyncLog> {
+  public async runSync(
+    trigger: 'automatic' | 'manual' | 'initial' = 'manual',
+    adminUser?: { uid?: string; email?: string }
+  ): Promise<SyncLog> {
+    const startTime = new Date().toISOString();
     console.log(`[NewsAggregator] Iniciando sincronização (${trigger})...`);
 
     const sourcesSuccessful: string[] = [];
@@ -166,23 +170,35 @@ class NewsAggregatorService {
       console.warn('[NewsAggregator] Aviso ao salvar no Firestore (modo offline/fallback ativo):', firestoreErr);
     }
 
+    const endTime = new Date().toISOString();
+    const articlesFound = allFetchedArticles.length;
+    const duplicatesCount = Math.max(0, articlesFound - newArticlesSaved);
+    const errorsCount = sourcesFailed.length;
+
     const log: SyncLog = {
       id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString(),
+      timestamp: endTime,
+      startTime,
+      endTime,
       sourcesAttempted: this.adapters.length,
       sourcesSuccessful,
       sourcesFailed,
+      articlesFound,
       newArticlesCount: newArticlesSaved,
+      duplicatesCount,
+      errorsCount,
       totalArticlesCount: totalInDb,
       trigger,
+      adminUid: adminUser?.uid || '',
+      adminEmail: adminUser?.email || '',
     };
 
-    // Save log to Firestore
+    // Save log to Firestore news_sync_logs
     try {
       const logRef = doc(db, 'news_sync_logs', log.id);
       await setDoc(logRef, log, { merge: true });
     } catch (err) {
-      // ignore offline log write error
+      console.warn('[NewsAggregator] Erro ao salvar log de sincronização no Firestore:', err);
     }
 
     this.currentLogs = [log, ...this.currentLogs].slice(0, 10);

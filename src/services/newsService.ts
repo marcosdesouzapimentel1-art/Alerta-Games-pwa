@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { NewsArticle, NewsCategory } from '../types';
+import { SyncLog } from './adapters/base';
 
 export const NEWS_CATEGORIES: NewsCategory[] = [
   'Todas',
@@ -310,20 +311,41 @@ export type { SyncLog } from './adapters/base';
  * Synchronizes news from external sources into Cloud Firestore.
  * Automatically avoids duplicates by checking existing document IDs and URLs.
  */
-export const syncNewsFromExternalSources = async (): Promise<{
+export const syncNewsFromExternalSources = async (
+  adminUser?: { uid?: string; email?: string }
+): Promise<{
   syncedCount: number;
   totalArticles: number;
+  log: SyncLog;
 }> => {
   try {
-    const log = await newsAggregator.runSync('manual');
+    const log = await newsAggregator.runSync('manual', adminUser);
     return {
       syncedCount: log.newArticlesCount,
       totalArticles: log.totalArticlesCount,
+      log,
     };
   } catch (error) {
     console.error('Erro ao sincronizar notícias no Firestore:', error);
     throw error;
   }
+};
+
+/**
+ * Fetches the most recent news sync log from Firestore news_sync_logs
+ */
+export const getLatestNewsSyncLogFromFirestore = async (): Promise<SyncLog | null> => {
+  try {
+    const logsColRef = collection(db, 'news_sync_logs');
+    const q = query(logsColRef, orderBy('timestamp', 'desc'), limitConstraint(1));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      return snapshot.docs[0].data() as SyncLog;
+    }
+  } catch (err) {
+    console.warn('Aviso ao buscar último log de sincronização:', err);
+  }
+  return null;
 };
 
 interface GetNewsOptions {

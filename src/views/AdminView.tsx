@@ -78,6 +78,7 @@ export const AdminView: React.FC = () => {
   const adminUserInfo = {
     uid: user?.uid || 'admin-guest-id',
     name: userProfile?.displayName || userProfile?.name || user?.email || 'Administrador',
+    email: user?.email || userProfile?.email || 'admin@alertagame.com',
   };
 
   // If not logged in or not admin, display Security Restriction / Auth Gate

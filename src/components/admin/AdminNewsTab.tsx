@@ -6,7 +6,13 @@ import {
   deleteNewsAdmin,
   sendManualNotificationAdmin,
 } from '../../services/adminService';
-import { getNewsFromFirestore, NEWS_CATEGORIES } from '../../services/newsService';
+import {
+  getNewsFromFirestore,
+  NEWS_CATEGORIES,
+  syncNewsFromExternalSources,
+  getLatestNewsSyncLogFromFirestore,
+  SyncLog,
+} from '../../services/newsService';
 import {
   Newspaper,
   Plus,
@@ -19,10 +25,17 @@ import {
   Bell,
   X,
   ExternalLink,
+  RefreshCw,
+  Radio,
+  Layers,
+  FileCheck,
+  Clock,
+  User,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface AdminNewsTabProps {
-  adminUser: { uid: string; name: string };
+  adminUser: { uid: string; name: string; email?: string };
   onRefreshStats: () => void;
 }
 
@@ -34,6 +47,10 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('Todas');
+
+  // Sync State
+  const [syncing, setSyncing] = useState<boolean>(false);
+  const [latestSyncLog, setLatestSyncLog] = useState<SyncLog | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -66,9 +83,50 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
     }
   };
 
+  const loadLatestSyncLog = async () => {
+    try {
+      const log = await getLatestNewsSyncLogFromFirestore();
+      if (log) {
+        setLatestSyncLog(log);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadArticles();
+    loadLatestSyncLog();
   }, []);
+
+  const handleSyncNewsNow = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setFeedback(null);
+
+    try {
+      const { syncedCount, log } = await syncNewsFromExternalSources({
+        uid: adminUser.uid,
+        email: adminUser.email || 'admin@alertagame.com',
+      });
+
+      setLatestSyncLog(log);
+      await loadArticles();
+      onRefreshStats();
+
+      setFeedback({
+        type: 'success',
+        message: `Sincronização realizada com sucesso! Fontes consultadas: ${log.sourcesAttempted}, Encontradas: ${log.articlesFound ?? 0}, Novas salvas: ${syncedCount}, Duplicadas ignoradas: ${log.duplicatesCount ?? 0}, Erros: ${log.errorsCount ?? 0}.`,
+      });
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: err?.message || 'Erro ao sincronizar notícias de fontes externas.',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const openCreateModal = () => {
     setEditingArticle(null);
@@ -242,6 +300,138 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
           <Plus className="w-4 h-4" />
           <span>Nova Notícia Manual</span>
         </button>
+      </div>
+
+      {/* News Sync Control Card */}
+      <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4 shadow-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center justify-center shrink-0">
+              <Radio className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-slate-100 font-heading">
+                  Agregador & Sincronizador Automático de Notícias
+                </h4>
+                <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-bold">
+                  7 Adapters RSS / API
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Obtém notícias de RAWG, IGN, GameSpot, VGC, Xbox, PlayStation e Nintendo com deduplicação no Firestore.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSyncNewsNow}
+            disabled={syncing}
+            className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer ${
+              syncing
+                ? 'bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed'
+                : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-cyan-500/20 active:scale-95'
+            }`}
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-cyan-400' : ''}`} />
+            <span>{syncing ? 'Sincronizando Fontes...' : 'Sincronizar Notícias Agora'}</span>
+          </button>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+              <Clock className="w-3 h-3 text-cyan-400" />
+              <span>Última Sync</span>
+            </div>
+            <p className="text-xs font-bold text-slate-200 truncate">
+              {latestSyncLog?.timestamp
+                ? new Date(latestSyncLog.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                : 'Pendente'}
+            </p>
+            <span className="text-[10px] text-slate-500 block truncate">
+              {latestSyncLog?.timestamp
+                ? new Date(latestSyncLog.timestamp).toLocaleDateString('pt-BR')
+                : 'Sem registro'}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+              <Layers className="w-3 h-3 text-blue-400" />
+              <span>Fontes / Encontradas</span>
+            </div>
+            <p className="text-base font-black text-slate-100 font-heading">
+              {latestSyncLog?.articlesFound ?? 0}
+            </p>
+            <span className="text-[10px] text-slate-400 block truncate">
+              {latestSyncLog?.sourcesAttempted ?? 7} fontes consultadas
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/20 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
+              <FileCheck className="w-3 h-3 text-emerald-400" />
+              <span>Novas Salvas</span>
+            </div>
+            <p className="text-base font-black text-emerald-300 font-heading">
+              +{latestSyncLog?.newArticlesCount ?? 0}
+            </p>
+            <span className="text-[10px] text-emerald-400/80 block truncate">
+              Coleção news
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/20 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-medium">
+              <CheckCircle className="w-3 h-3 text-amber-400" />
+              <span>Duplicadas</span>
+            </div>
+            <p className="text-base font-black text-amber-300 font-heading">
+              {latestSyncLog?.duplicatesCount ?? 0}
+            </p>
+            <span className="text-[10px] text-amber-400/80 block truncate">
+              Ignoradas
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/20 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-rose-400 font-medium">
+              <AlertTriangle className="w-3 h-3 text-rose-400" />
+              <span>Falhas / Erros</span>
+            </div>
+            <p className="text-base font-black text-rose-300 font-heading">
+              {latestSyncLog?.errorsCount ?? 0}
+            </p>
+            <span className="text-[10px] text-rose-400/80 block truncate">
+              Fontes com erro
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+              <User className="w-3 h-3 text-cyan-400" />
+              <span>Executado Por</span>
+            </div>
+            <p className="text-xs font-bold text-slate-200 truncate" title={latestSyncLog?.adminEmail || adminUser.email || 'Admin'}>
+              {latestSyncLog?.adminEmail || adminUser.email || 'Admin'}
+            </p>
+            <span className="text-[10px] text-slate-500 block truncate">
+              Role: admin
+            </span>
+          </div>
+        </div>
+
+        {/* Integrated Adapters Badges */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] text-slate-400">
+          <span className="font-semibold text-slate-500 mr-1">Adapters Ativos:</span>
+          {['RAWG', 'IGN', 'GameSpot', 'VGC', 'Xbox Wire', 'PlayStation Blog', 'Nintendo News'].map((source) => (
+            <span key={source} className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
+              {source}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Feedback Banner */}
