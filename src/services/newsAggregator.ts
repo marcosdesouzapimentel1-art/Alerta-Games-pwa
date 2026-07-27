@@ -248,7 +248,7 @@ class NewsAggregatorService {
       const q = query(newsColRef, orderBy('publishedAt', 'desc'), limitConstraint(20));
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
+        if (!snapshot.empty && snapshot.docChanges().length > 0) {
           callback();
         }
       }, (error) => {

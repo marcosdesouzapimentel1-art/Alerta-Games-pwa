@@ -45,13 +45,10 @@ export const NoticiasView: React.FC = () => {
   const touchStartY = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load news from Firestore
-  const loadNews = useCallback(async (isInitial: boolean = false, category: string = 'Todas', search: string = '') => {
-    if (isInitial) {
+  // Load news from Firestore (initial load or silent refresh)
+  const fetchNews = useCallback(async (category: string = 'Todas', search: string = '', silent: boolean = false) => {
+    if (!silent) {
       setIsLoading(true);
-      setLastVisibleDoc(null);
-    } else {
-      setIsFetchingMore(true);
     }
 
     try {
@@ -59,51 +56,82 @@ export const NoticiasView: React.FC = () => {
         category,
         searchQuery: search,
         pageSize: 9,
-        lastDocSnap: isInitial ? null : lastVisibleDoc,
+        lastDocSnap: null,
       });
 
-      if (isInitial) {
-        setArticles(res.articles);
-      } else {
-        setArticles((prev) => {
-          const existingIds = new Set(prev.map((a) => a.id));
-          const newUnique = res.articles.filter((a) => !existingIds.has(a.id));
-          return [...prev, ...newUnique];
-        });
-      }
-
+      setArticles(res.articles);
       setLastVisibleDoc(res.lastVisibleDoc);
       setHasMore(res.hasMore);
     } catch (error) {
       console.error('Erro ao carregar notícias:', error);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  // Pagination function using lastVisibleDoc
+  const loadMoreNews = useCallback(async () => {
+    if (!lastVisibleDoc || isFetchingMore || !hasMore) return;
+
+    setIsFetchingMore(true);
+
+    try {
+      const res = await getNewsFromFirestore({
+        category: selectedCategory,
+        searchQuery,
+        pageSize: 9,
+        lastDocSnap: lastVisibleDoc,
+      });
+
+      setArticles((prev) => {
+        const existingIds = new Set(prev.map((a) => a.id));
+        const newUnique = res.articles.filter((a) => !existingIds.has(a.id));
+        return [...prev, ...newUnique];
+      });
+
+      setLastVisibleDoc(res.lastVisibleDoc);
+      setHasMore(res.hasMore);
+    } catch (error) {
+      console.error('Erro ao carregar mais notícias:', error);
+    } finally {
       setIsFetchingMore(false);
     }
-  }, [lastVisibleDoc]);
+  }, [lastVisibleDoc, isFetchingMore, hasMore, selectedCategory, searchQuery]);
 
-  // Initial load and start 10-min background sync timer + real-time listeners
+  // Maintain stable refs for real-time listeners & timers
+  const fetchNewsRef = useRef(fetchNews);
   useEffect(() => {
-    loadNews(true, selectedCategory, searchQuery);
+    fetchNewsRef.current = fetchNews;
+  }, [fetchNews]);
+
+  const selectedCategoryRef = useRef(selectedCategory);
+  const searchQueryRef = useRef(searchQuery);
+  useEffect(() => {
+    selectedCategoryRef.current = selectedCategory;
+    searchQueryRef.current = searchQuery;
   }, [selectedCategory, searchQuery]);
 
+  // Category and search filter changes
   useEffect(() => {
-    // Start background 10-minute auto-sync
+    fetchNews(selectedCategory, searchQuery, false);
+  }, [selectedCategory, searchQuery, fetchNews]);
+
+  // Setup background auto-sync and real-time listeners once on mount
+  useEffect(() => {
     newsAggregator.startAutoSync(10);
 
-    // Subscribe to sync completed events
     const unsubSync = newsAggregator.subscribeSync(() => {
       setMinutesAgo(newsAggregator.getMinutesSinceLastSync());
       setRecentLogs(newsAggregator.getRecentLogs());
-      loadNews(true, selectedCategory, searchQuery);
+      fetchNewsRef.current(selectedCategoryRef.current, searchQueryRef.current, true);
     });
 
-    // Subscribe to real-time Firestore updates
     const unsubRealtime = newsAggregator.subscribeFirestoreNewsRealtime(() => {
-      loadNews(true, selectedCategory, searchQuery);
+      fetchNewsRef.current(selectedCategoryRef.current, searchQueryRef.current, true);
     });
 
-    // Timer to refresh "X minutes ago" label every 30 seconds
     const intervalTimer = setInterval(() => {
       setMinutesAgo(newsAggregator.getMinutesSinceLastSync());
     }, 30000);
@@ -113,7 +141,7 @@ export const NoticiasView: React.FC = () => {
       unsubRealtime();
       clearInterval(intervalTimer);
     };
-  }, [selectedCategory, searchQuery, loadNews]);
+  }, []);
 
   // Manual Sync trigger
   const handleSyncNews = async () => {
@@ -129,7 +157,7 @@ export const NoticiasView: React.FC = () => {
         showToast('Notícias atualizadas! Nenhuma novidade no momento.');
       }
 
-      await loadNews(true, selectedCategory, searchQuery);
+      await fetchNews(selectedCategory, searchQuery, true);
     } catch (error) {
       console.error('Erro ao sincronizar notícias:', error);
       showToast('Erro ao atualizar notícias. Fontes de contingência ativas.');
@@ -402,7 +430,7 @@ export const NoticiasView: React.FC = () => {
           {hasMore && (
             <div className="text-center pt-6">
               <button
-                onClick={() => loadNews(false, selectedCategory, searchQuery)}
+                onClick={loadMoreNews}
                 disabled={isFetchingMore}
                 className="py-3 px-8 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-2 mx-auto shadow-lg hover:border-cyan-500/50 cursor-pointer"
               >
