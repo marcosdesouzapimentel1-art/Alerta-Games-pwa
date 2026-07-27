@@ -6,7 +6,8 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { InstallModal } from './InstallModal';
 
-export const Header: React.FC = () => {
+export const Header: React.FC = React.memo(() => {
+  console.count('[Render] Header');
   const { isDark, toggleTheme } = useTheme();
   const { isInstalled, isOnline } = usePWA();
   const { isAdmin, user } = useAuth();
@@ -147,4 +148,4 @@ export const Header: React.FC = () => {
       </div>
     </header>
   );
-};
+});

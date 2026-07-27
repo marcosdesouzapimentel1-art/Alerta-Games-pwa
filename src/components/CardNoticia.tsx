@@ -7,7 +7,8 @@ interface CardNoticiaProps {
   news: NewsItem;
 }
 
-export const CardNoticia: React.FC<CardNoticiaProps> = ({ news }) => {
+export const CardNoticia: React.FC<CardNoticiaProps> = React.memo(({ news }) => {
+  console.count('[Render] CardNoticia');
   const { setSelectedNews, favoriteNewsIds, toggleFavoriteNews, showToast } = useApp();
   const isFavorited = favoriteNewsIds.includes(news.id);
 
@@ -143,4 +144,4 @@ export const CardNoticia: React.FC<CardNoticiaProps> = ({ news }) => {
       </div>
     </article>
   );
-};
+});

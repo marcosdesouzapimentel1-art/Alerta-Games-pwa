@@ -4,7 +4,8 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ActiveTab } from '../types';
 
-export const BottomNav: React.FC = () => {
+export const BottomNav: React.FC = React.memo(() => {
+  console.count('[Render] BottomNav');
   const {
     activeTab,
     setActiveTab,
@@ -67,4 +68,4 @@ export const BottomNav: React.FC = () => {
       </div>
     </nav>
   );
-};
+});

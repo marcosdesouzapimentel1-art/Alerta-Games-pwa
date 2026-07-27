@@ -20,7 +20,70 @@ import {
 } from 'lucide-react';
 import { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
+const FeaturedNewsCard: React.FC<{ article: NewsArticle; onSelect: (article: NewsArticle) => void }> = React.memo(({ article, onSelect }) => {
+  console.count('[Render] FeaturedNewsCard');
+  return (
+    <section
+      onClick={() => onSelect(article)}
+      className="group relative h-80 sm:h-96 w-full rounded-3xl overflow-hidden border border-slate-800 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer shadow-2xl bg-slate-950"
+    >
+      <img
+        src={article.image || article.imageUrl}
+        alt={article.title}
+        referrerPolicy="no-referrer"
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+
+      {/* Top Badges */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+        <span className="px-3 py-1 rounded-xl text-xs font-black uppercase bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 flex items-center gap-1">
+          <Flame className="w-3.5 h-3.5 fill-current animate-pulse" />
+          Destaque
+        </span>
+        <span className="px-3 py-1 rounded-xl text-xs font-bold bg-slate-950/80 backdrop-blur-md text-slate-300 border border-slate-800 flex items-center gap-1">
+          <Clock className="w-3.5 h-3.5 text-cyan-400" />
+          {article.readTimeMinutes || 3} min
+        </span>
+      </div>
+
+      {/* Bottom Info Content */}
+      <div className="absolute bottom-6 left-6 right-6 space-y-2">
+        <div className="flex items-center gap-2 text-xs text-cyan-300 font-bold">
+          <span className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-cyan-500/30 text-cyan-400 uppercase">
+            {article.category}
+          </span>
+          <span>•</span>
+          <span>{article.source}</span>
+          <span>•</span>
+          <span>{new Date(article.publishedAt).toLocaleDateString('pt-BR')}</span>
+        </div>
+
+        <h2 className="text-xl sm:text-3xl font-black font-heading text-white group-hover:text-cyan-300 transition-colors line-clamp-2 leading-tight">
+          {article.title}
+        </h2>
+
+        <p className="text-slate-300 text-xs sm:text-sm line-clamp-2 leading-relaxed">
+          {article.summary}
+        </p>
+      </div>
+    </section>
+  );
+});
+
+const NewsGrid: React.FC<{ articles: NewsArticle[] }> = React.memo(({ articles }) => {
+  console.count('[Render] NewsGrid');
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {articles.map((news) => (
+        <CardNoticia key={news.id} news={news} />
+      ))}
+    </div>
+  );
+});
+
 export const NoticiasView: React.FC = () => {
+  console.count('[Render] NoticiasView');
   const { setSelectedNews, showToast } = useApp();
 
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -47,7 +110,9 @@ export const NoticiasView: React.FC = () => {
 
   // Load news from Firestore (initial load or silent refresh)
   const fetchNews = useCallback(async (category: string = 'Todas', search: string = '', silent: boolean = false) => {
+    console.log(`[Audit - NoticiasView] fetchNews chamado | Categoria: "${category}" | Busca: "${search}" | Silent: ${silent} | Hora: ${new Date().toLocaleTimeString()}`);
     if (!silent) {
+      console.log('[Audit - NoticiasView] Executando setIsLoading(true)');
       setIsLoading(true);
     }
 
@@ -59,6 +124,7 @@ export const NoticiasView: React.FC = () => {
         lastDocSnap: null,
       });
 
+      console.log(`[Audit - NoticiasView] setArticles chamado com ${res.articles.length} notícias retornadas do Firestore`);
       setArticles(res.articles);
       setLastVisibleDoc(res.lastVisibleDoc);
       setHasMore(res.hasMore);
@@ -66,6 +132,7 @@ export const NoticiasView: React.FC = () => {
       console.error('Erro ao carregar notícias:', error);
     } finally {
       if (!silent) {
+        console.log('[Audit - NoticiasView] Executando setIsLoading(false)');
         setIsLoading(false);
       }
     }
@@ -75,6 +142,7 @@ export const NoticiasView: React.FC = () => {
   const loadMoreNews = useCallback(async () => {
     if (!lastVisibleDoc || isFetchingMore || !hasMore) return;
 
+    console.log('[Audit - NoticiasView] loadMoreNews chamado para paginação');
     setIsFetchingMore(true);
 
     try {
@@ -85,6 +153,7 @@ export const NoticiasView: React.FC = () => {
         lastDocSnap: lastVisibleDoc,
       });
 
+      console.log(`[Audit - NoticiasView] setArticles (append) chamado com +${res.articles.length} notícias`);
       setArticles((prev) => {
         const existingIds = new Set(prev.map((a) => a.id));
         const newUnique = res.articles.filter((a) => !existingIds.has(a.id));
@@ -115,20 +184,24 @@ export const NoticiasView: React.FC = () => {
 
   // Category and search filter changes
   useEffect(() => {
+    console.log(`[Audit - NoticiasView] Effect de filtro/pesquisa disparado | Categoria: "${selectedCategory}" | Busca: "${searchQuery}"`);
     fetchNews(selectedCategory, searchQuery, false);
   }, [selectedCategory, searchQuery, fetchNews]);
 
   // Setup background auto-sync and real-time listeners once on mount
   useEffect(() => {
+    console.log('[Audit - NoticiasView] Mount: Configurando listeners e auto-sync de notícias');
     newsAggregator.startAutoSync(10);
 
     const unsubSync = newsAggregator.subscribeSync(() => {
+      console.log('[Audit - NoticiasView] Evento de sync do newsAggregator capturado! Disparando fetchNews silencioso.');
       setMinutesAgo(newsAggregator.getMinutesSinceLastSync());
       setRecentLogs(newsAggregator.getRecentLogs());
       fetchNewsRef.current(selectedCategoryRef.current, searchQueryRef.current, true);
     });
 
     const unsubRealtime = newsAggregator.subscribeFirestoreNewsRealtime(() => {
+      console.log('[Audit - NoticiasView] Evento real-time Firestore capturado! Disparando fetchNews silencioso.');
       fetchNewsRef.current(selectedCategoryRef.current, searchQueryRef.current, true);
     });
 
@@ -137,6 +210,7 @@ export const NoticiasView: React.FC = () => {
     }, 30000);
 
     return () => {
+      console.log('[Audit - NoticiasView] Unmount: Limpando listeners e timers');
       unsubSync();
       unsubRealtime();
       clearInterval(intervalTimer);
@@ -331,51 +405,7 @@ export const NoticiasView: React.FC = () => {
 
       {/* Hero Main Banner (Highlighted Article) */}
       {!isLoading && heroArticle && !searchQuery && selectedCategory === 'Todas' && (
-        <section
-          onClick={() => setSelectedNews(heroArticle)}
-          className="group relative h-80 sm:h-96 w-full rounded-3xl overflow-hidden border border-slate-800 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer shadow-2xl bg-slate-950"
-        >
-          <img
-            src={heroArticle.image || heroArticle.imageUrl}
-            alt={heroArticle.title}
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-
-          {/* Top Badges */}
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-            <span className="px-3 py-1 rounded-xl text-xs font-black uppercase bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 fill-current animate-pulse" />
-              Destaque
-            </span>
-            <span className="px-3 py-1 rounded-xl text-xs font-bold bg-slate-950/80 backdrop-blur-md text-slate-300 border border-slate-800 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              {heroArticle.readTimeMinutes || 3} min
-            </span>
-          </div>
-
-          {/* Bottom Info Content */}
-          <div className="absolute bottom-6 left-6 right-6 space-y-2">
-            <div className="flex items-center gap-2 text-xs text-cyan-300 font-bold">
-              <span className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-cyan-500/30 text-cyan-400 uppercase">
-                {heroArticle.category}
-              </span>
-              <span>•</span>
-              <span>{heroArticle.source}</span>
-              <span>•</span>
-              <span>{new Date(heroArticle.publishedAt).toLocaleDateString('pt-BR')}</span>
-            </div>
-
-            <h2 className="text-xl sm:text-3xl font-black font-heading text-white group-hover:text-cyan-300 transition-colors line-clamp-2 leading-tight">
-              {heroArticle.title}
-            </h2>
-
-            <p className="text-slate-300 text-xs sm:text-sm line-clamp-2 leading-relaxed">
-              {heroArticle.summary}
-            </p>
-          </div>
-        </section>
+        <FeaturedNewsCard article={heroArticle} onSelect={setSelectedNews} />
       )}
 
       {/* Skeleton Loading State */}
@@ -420,11 +450,7 @@ export const NoticiasView: React.FC = () => {
       ) : (
         /* News Cards Grid */
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {(searchQuery || selectedCategory !== 'Todas' ? articles : gridArticles).map((news) => (
-              <CardNoticia key={news.id} news={news} />
-            ))}
-          </div>
+          <NewsGrid articles={searchQuery || selectedCategory !== 'Todas' ? articles : gridArticles} />
 
           {/* Infinite Pagination Controls */}
           {hasMore && (
