@@ -2,6 +2,11 @@ import * as admin from 'firebase-admin';
 import { fetchRawgNews } from './rawg';
 import { fetchRssFeed, RSS_FEEDS } from './rss';
 import { deduplicateArticles, NewsArticleInput } from '../utils/deduplicate';
+import { processArticleWithGemini, GeminiNewsAnalysis } from './gemini';
+import { formatArticleTranslation } from './translator';
+import { normalizeCategory, processKeywords } from './classifier';
+import { generateSeoData } from './seo';
+import { createPushNotificationDoc } from './notifier';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -20,12 +25,34 @@ export interface NewsSyncResult {
   startedAt: string;
   completedAt: string;
   durationMs: number;
+  executionTime: number;
   totalFound: number;
   totalAdded: number;
   duplicatesCount: number;
+  geminiProcessed: number;
+  geminiErrors: number;
+  translationTime: number;
+  tokensUsed: number;
   errors: Array<{ source: string; message: string }>;
   sourcesQueried: SourceQueryResult[];
   status: 'success' | 'partial' | 'error';
+}
+
+/**
+ * Executa chamadas assíncronas em lotes paralelos controlados
+ */
+async function processBatchInParallel<T, R>(
+  items: T[],
+  batchSize: number,
+  processor: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map((item) => processor(item)));
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 export async function runNewsSync(): Promise<NewsSyncResult> {
@@ -80,11 +107,11 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   const totalFound = fetchedArticles.length;
 
-  // 3. Obter artigos existentes no Firestore "news" para deduplicação
+  // 3. Obter notícias existentes na coleção "news" para deduplicação e verificação de cache
   const existingSnapshot = await db
     .collection('news')
     .orderBy('publishedAt', 'desc')
-    .limit(300)
+    .limit(350)
     .get();
 
   const existingItems = existingSnapshot.docs.map((doc) => {
@@ -92,48 +119,117 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     return {
       id: doc.id,
       url: data.url || '',
-      title: data.title || ''
+      title: data.titleOriginal || data.title || ''
     };
   });
 
-  // 4. Filtrar inéditas com deduplicação (URL, Título e ID)
+  // 4. Filtrar matérias inéditas (deduplicação por URL, título e ID)
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
 
-  // 5. Salvar notícias inéditas na coleção "news"
+  // 5. Processamento via Google Gemini AI
+  let geminiProcessed = 0;
+  let geminiErrors = 0;
+  let tokensUsed = 0;
+  const translationStartMs = Date.now();
+
+  // Processar em lotes paralelos de 3 itens para não exceder limites de taxa
+  const geminiResults = await processBatchInParallel(
+    uniqueArticles,
+    3,
+    async (article) => {
+      try {
+        const analysis = await processArticleWithGemini(article);
+        if (analysis) {
+          geminiProcessed++;
+          tokensUsed += analysis.tokensUsed || 0;
+          return { article, analysis };
+        } else {
+          geminiErrors++;
+          return { article, analysis: null };
+        }
+      } catch (gemErr) {
+        geminiErrors++;
+        return { article, analysis: null };
+      }
+    }
+  );
+
+  const translationTime = Date.now() - translationStartMs;
+
+  // 6. Preparar e gravar matérias traduzidas e enriquecidas no Firestore "news"
   let totalAdded = 0;
 
-  if (uniqueArticles.length > 0) {
-    const chunks: NewsArticleInput[][] = [];
-    for (let i = 0; i < uniqueArticles.length; i += 400) {
-      chunks.push(uniqueArticles.slice(i, i + 400));
+  if (geminiResults.length > 0) {
+    const chunks = [];
+    for (let i = 0; i < geminiResults.length; i += 300) {
+      chunks.push(geminiResults.slice(i, i + 300));
     }
 
     for (const chunk of chunks) {
       const batch = db.batch();
-      for (const article of chunk) {
+
+      for (const { article, analysis } of chunk) {
+        const translationData = formatArticleTranslation(article, analysis);
+        const finalCategory = normalizeCategory(analysis?.category, article.category);
+        const keywords = processKeywords(analysis?.keywords, translationData.titlePt, article.source);
+        const importance = typeof analysis?.importance === 'number' ? analysis.importance : 50;
+        const shouldNotify = Boolean(analysis?.shouldNotify);
+        const seoData = generateSeoData(translationData.titlePt, translationData.summaryPt, analysis);
+
         const docRef = db.collection('news').doc(article.id!);
+
         batch.set(
           docRef,
           {
             id: article.id,
-            title: article.title,
-            summary: article.summary,
-            content: article.content || article.summary,
+            // Campos legados (retrocompatibilidade com frontend React)
+            title: translationData.titlePt,
+            summary: translationData.summaryPt,
+            content: translationData.summaryPt,
             url: article.url,
             imageUrl: article.imageUrl || article.image || '',
             image: article.imageUrl || article.image || '',
             source: article.source,
-            category: article.category,
+            category: finalCategory,
             publishedAt: article.publishedAt,
             readTimeMinutes: article.readTimeMinutes || 3,
             views: 0,
             likes: 0,
+
+            // Novos campos Gemini AI
+            titleOriginal: translationData.titleOriginal,
+            descriptionOriginal: translationData.descriptionOriginal,
+            contentOriginal: translationData.contentOriginal,
+            titlePt: translationData.titlePt,
+            summaryPt: translationData.summaryPt,
+            keywords,
+            importance,
+            shouldNotify,
+            seoTitle: seoData.seoTitle,
+            seoDescription: seoData.seoDescription,
+            translatedAt: translationData.translatedAt,
+            geminiVersion: translationData.geminiVersion,
+
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
           },
           { merge: true }
         );
+
+        // Se for marcado para notificação (shouldNotify == true), registrar na coleção "notifications"
+        if (shouldNotify) {
+          createPushNotificationDoc(db, {
+            title: translationData.titlePt,
+            body: translationData.summaryPt,
+            image: article.imageUrl || article.image || '',
+            url: article.url,
+            category: finalCategory,
+            importance,
+            source: article.source
+          }).catch((err) => console.error('Erro na gravação assíncrona de notificação:', err));
+        }
       }
+
       await batch.commit();
       totalAdded += chunk.length;
     }
@@ -141,6 +237,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   const completedAt = new Date().toISOString();
   const durationMs = Date.now() - startTimeMs;
+  const executionTime = durationMs;
 
   const status: 'success' | 'partial' | 'error' =
     errors.length === 0
@@ -153,30 +250,40 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     startedAt,
     completedAt,
     durationMs,
+    executionTime,
     totalFound,
     totalAdded,
     duplicatesCount,
+    geminiProcessed,
+    geminiErrors,
+    translationTime,
+    tokensUsed,
     errors,
     sourcesQueried,
     status
   };
 
-  // 6. Registrar estatísticas na coleção "news_sync_logs"
+  // 7. Salvar estatísticas completas na coleção "news_sync_logs"
   try {
     await db.collection('news_sync_logs').add({
       startedAt,
       completedAt,
       durationMs,
+      executionTime,
       totalFound,
       totalAdded,
       duplicatesCount,
+      geminiProcessed,
+      geminiErrors,
+      translationTime,
+      tokensUsed,
       errors,
       sourcesQueried,
       status,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
   } catch (logErr: any) {
-    console.error('Erro ao salvar em news_sync_logs:', logErr.message);
+    console.error('Erro ao salvar log em news_sync_logs:', logErr.message);
   }
 
   return result;

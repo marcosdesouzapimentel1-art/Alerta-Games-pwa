@@ -38,10 +38,27 @@ const admin = __importStar(require("firebase-admin"));
 const rawg_1 = require("./rawg");
 const rss_1 = require("./rss");
 const deduplicate_1 = require("../utils/deduplicate");
+const gemini_1 = require("./gemini");
+const translator_1 = require("./translator");
+const classifier_1 = require("./classifier");
+const seo_1 = require("./seo");
+const notifier_1 = require("./notifier");
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
+/**
+ * Executa chamadas assíncronas em lotes paralelos controlados
+ */
+async function processBatchInParallel(items, batchSize, processor) {
+    const results = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        const batchResults = await Promise.all(batch.map((item) => processor(item)));
+        results.push(...batchResults);
+    }
+    return results;
+}
 async function runNewsSync() {
     const startedAt = new Date().toISOString();
     const startTimeMs = Date.now();
@@ -91,50 +108,107 @@ async function runNewsSync() {
         }
     }
     const totalFound = fetchedArticles.length;
-    // 3. Obter artigos existentes no Firestore "news" para deduplicação
+    // 3. Obter notícias existentes na coleção "news" para deduplicação e verificação de cache
     const existingSnapshot = await db
         .collection('news')
         .orderBy('publishedAt', 'desc')
-        .limit(300)
+        .limit(350)
         .get();
     const existingItems = existingSnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
             id: doc.id,
             url: data.url || '',
-            title: data.title || ''
+            title: data.titleOriginal || data.title || ''
         };
     });
-    // 4. Filtrar inéditas com deduplicação (URL, Título e ID)
+    // 4. Filtrar matérias inéditas (deduplicação por URL, título e ID)
     const { uniqueArticles, duplicatesCount } = (0, deduplicate_1.deduplicateArticles)(fetchedArticles, existingItems);
-    // 5. Salvar notícias inéditas na coleção "news"
+    // 5. Processamento via Google Gemini AI
+    let geminiProcessed = 0;
+    let geminiErrors = 0;
+    let tokensUsed = 0;
+    const translationStartMs = Date.now();
+    // Processar em lotes paralelos de 3 itens para não exceder limites de taxa
+    const geminiResults = await processBatchInParallel(uniqueArticles, 3, async (article) => {
+        try {
+            const analysis = await (0, gemini_1.processArticleWithGemini)(article);
+            if (analysis) {
+                geminiProcessed++;
+                tokensUsed += analysis.tokensUsed || 0;
+                return { article, analysis };
+            }
+            else {
+                geminiErrors++;
+                return { article, analysis: null };
+            }
+        }
+        catch (gemErr) {
+            geminiErrors++;
+            return { article, analysis: null };
+        }
+    });
+    const translationTime = Date.now() - translationStartMs;
+    // 6. Preparar e gravar matérias traduzidas e enriquecidas no Firestore "news"
     let totalAdded = 0;
-    if (uniqueArticles.length > 0) {
+    if (geminiResults.length > 0) {
         const chunks = [];
-        for (let i = 0; i < uniqueArticles.length; i += 400) {
-            chunks.push(uniqueArticles.slice(i, i + 400));
+        for (let i = 0; i < geminiResults.length; i += 300) {
+            chunks.push(geminiResults.slice(i, i + 300));
         }
         for (const chunk of chunks) {
             const batch = db.batch();
-            for (const article of chunk) {
+            for (const { article, analysis } of chunk) {
+                const translationData = (0, translator_1.formatArticleTranslation)(article, analysis);
+                const finalCategory = (0, classifier_1.normalizeCategory)(analysis?.category, article.category);
+                const keywords = (0, classifier_1.processKeywords)(analysis?.keywords, translationData.titlePt, article.source);
+                const importance = typeof analysis?.importance === 'number' ? analysis.importance : 50;
+                const shouldNotify = Boolean(analysis?.shouldNotify);
+                const seoData = (0, seo_1.generateSeoData)(translationData.titlePt, translationData.summaryPt, analysis);
                 const docRef = db.collection('news').doc(article.id);
                 batch.set(docRef, {
                     id: article.id,
-                    title: article.title,
-                    summary: article.summary,
-                    content: article.content || article.summary,
+                    // Campos legados (retrocompatibilidade com frontend React)
+                    title: translationData.titlePt,
+                    summary: translationData.summaryPt,
+                    content: translationData.summaryPt,
                     url: article.url,
                     imageUrl: article.imageUrl || article.image || '',
                     image: article.imageUrl || article.image || '',
                     source: article.source,
-                    category: article.category,
+                    category: finalCategory,
                     publishedAt: article.publishedAt,
                     readTimeMinutes: article.readTimeMinutes || 3,
                     views: 0,
                     likes: 0,
+                    // Novos campos Gemini AI
+                    titleOriginal: translationData.titleOriginal,
+                    descriptionOriginal: translationData.descriptionOriginal,
+                    contentOriginal: translationData.contentOriginal,
+                    titlePt: translationData.titlePt,
+                    summaryPt: translationData.summaryPt,
+                    keywords,
+                    importance,
+                    shouldNotify,
+                    seoTitle: seoData.seoTitle,
+                    seoDescription: seoData.seoDescription,
+                    translatedAt: translationData.translatedAt,
+                    geminiVersion: translationData.geminiVersion,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
+                // Se for marcado para notificação (shouldNotify == true), registrar na coleção "notifications"
+                if (shouldNotify) {
+                    (0, notifier_1.createPushNotificationDoc)(db, {
+                        title: translationData.titlePt,
+                        body: translationData.summaryPt,
+                        image: article.imageUrl || article.image || '',
+                        url: article.url,
+                        category: finalCategory,
+                        importance,
+                        source: article.source
+                    }).catch((err) => console.error('Erro na gravação assíncrona de notificação:', err));
+                }
             }
             await batch.commit();
             totalAdded += chunk.length;
@@ -142,6 +216,7 @@ async function runNewsSync() {
     }
     const completedAt = new Date().toISOString();
     const durationMs = Date.now() - startTimeMs;
+    const executionTime = durationMs;
     const status = errors.length === 0
         ? 'success'
         : errors.length < sourcesQueried.length
@@ -151,22 +226,32 @@ async function runNewsSync() {
         startedAt,
         completedAt,
         durationMs,
+        executionTime,
         totalFound,
         totalAdded,
         duplicatesCount,
+        geminiProcessed,
+        geminiErrors,
+        translationTime,
+        tokensUsed,
         errors,
         sourcesQueried,
         status
     };
-    // 6. Registrar estatísticas na coleção "news_sync_logs"
+    // 7. Salvar estatísticas completas na coleção "news_sync_logs"
     try {
         await db.collection('news_sync_logs').add({
             startedAt,
             completedAt,
             durationMs,
+            executionTime,
             totalFound,
             totalAdded,
             duplicatesCount,
+            geminiProcessed,
+            geminiErrors,
+            translationTime,
+            tokensUsed,
             errors,
             sourcesQueried,
             status,
@@ -174,7 +259,7 @@ async function runNewsSync() {
         });
     }
     catch (logErr) {
-        console.error('Erro ao salvar em news_sync_logs:', logErr.message);
+        console.error('Erro ao salvar log em news_sync_logs:', logErr.message);
     }
     return result;
 }
