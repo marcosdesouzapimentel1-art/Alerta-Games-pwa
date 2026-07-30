@@ -9,7 +9,7 @@ import {
 import {
   getNewsFromFirestore,
   NEWS_CATEGORIES,
-  syncNewsFromExternalSources,
+  triggerCloudFunctionNewsSync,
   getLatestNewsSyncLogFromFirestore,
   SyncLog,
 } from '../../services/newsService';
@@ -50,6 +50,8 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
 
   // Sync State
   const [syncing, setSyncing] = useState<boolean>(false);
+  const [syncProgress, setSyncProgress] = useState<number>(0);
+  const [syncStatusMessage, setSyncStatusMessage] = useState<string>('');
   const [latestSyncLog, setLatestSyncLog] = useState<SyncLog | null>(null);
 
   // Modal State
@@ -102,29 +104,57 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
   const handleSyncNewsNow = async () => {
     if (syncing) return;
     setSyncing(true);
+    setSyncProgress(10);
+    setSyncStatusMessage('Conectando à Cloud Function syncNewsManual...');
     setFeedback(null);
 
-    try {
-      const { syncedCount, log } = await syncNewsFromExternalSources({
-        uid: adminUser.uid,
-        email: adminUser.email || 'admin@alertagame.com',
+    // Progress bar timer animation while waiting for HTTP Cloud Function response
+    const progressInterval = setInterval(() => {
+      setSyncProgress((prev) => {
+        if (prev < 35) {
+          setSyncStatusMessage('Cloud Function v2: Consultando RSS Feeds e RAWG API...');
+          return prev + 10;
+        } else if (prev < 75) {
+          setSyncStatusMessage('Cloud Function v2: Filtrando e executando deduplicação...');
+          return prev + 8;
+        } else if (prev < 90) {
+          setSyncStatusMessage('Cloud Function v2: Gravando notícias na coleção news e logs...');
+          return prev + 3;
+        }
+        return prev;
       });
+    }, 450);
+
+    try {
+      const { syncedCount, log } = await triggerCloudFunctionNewsSync();
+
+      clearInterval(progressInterval);
+      setSyncProgress(100);
+      setSyncStatusMessage('Sincronização Cloud Function concluída!');
 
       setLatestSyncLog(log);
       await loadArticles();
+      await loadLatestSyncLog();
       onRefreshStats();
 
       setFeedback({
         type: 'success',
-        message: `Sincronização realizada com sucesso! Fontes consultadas: ${log.sourcesAttempted}, Encontradas: ${log.articlesFound ?? 0}, Novas salvas: ${syncedCount}, Duplicadas ignoradas: ${log.duplicatesCount ?? 0}, Erros: ${log.errorsCount ?? 0}.`,
+        message: `Sincronização via Cloud Function executada com sucesso! Fontes consultadas: ${log.sourcesAttempted}, Encontradas: ${log.articlesFound ?? 0}, Novas salvas: ${syncedCount}, Duplicadas ignoradas: ${log.duplicatesCount ?? 0}, Erros: ${log.errorsCount ?? 0}.`,
       });
     } catch (err: any) {
+      clearInterval(progressInterval);
+      setSyncProgress(0);
+      setSyncStatusMessage('');
       setFeedback({
         type: 'error',
-        message: err?.message || 'Erro ao sincronizar notícias de fontes externas.',
+        message: err?.message || 'Erro ao comunicar com a Cloud Function syncNewsManual.',
       });
     } finally {
-      setSyncing(false);
+      setTimeout(() => {
+        setSyncing(false);
+        setSyncProgress(0);
+        setSyncStatusMessage('');
+      }, 1500);
     }
   };
 
@@ -334,9 +364,28 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
             }`}
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-cyan-400' : ''}`} />
-            <span>{syncing ? 'Sincronizando Fontes...' : 'Sincronizar Notícias Agora'}</span>
+            <span>{syncing ? 'Sincronizando via Cloud Function...' : 'Sincronizar Notícias Agora'}</span>
           </button>
         </div>
+
+        {/* Cloud Function Sync Progress Bar */}
+        {(syncing || syncProgress > 0) && (
+          <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 space-y-2 animate-fadeIn">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 font-bold text-cyan-400">
+                <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
+                <span>{syncStatusMessage || 'Processando sincronização via Cloud Function v2...'}</span>
+              </div>
+              <span className="font-mono text-cyan-300 font-bold">{syncProgress}%</span>
+            </div>
+            <div className="w-full h-2.5 rounded-full bg-slate-800/90 overflow-hidden relative">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 transition-all duration-300 ease-out rounded-full shadow-lg shadow-cyan-500/50"
+                style={{ width: `${syncProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">

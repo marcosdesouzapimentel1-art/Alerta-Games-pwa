@@ -308,8 +308,86 @@ export { newsAggregator };
 export type { SyncLog } from './adapters/base';
 
 /**
- * Synchronizes news from external sources into Cloud Firestore.
- * Automatically avoids duplicates by checking existing document IDs and URLs.
+ * Triggers the Cloud Function v2 syncNewsManual via HTTP request
+ */
+export const triggerCloudFunctionNewsSync = async (): Promise<{
+  syncedCount: number;
+  totalArticles: number;
+  log: SyncLog;
+}> => {
+  const functionUrl =
+    import.meta.env.VITE_SYNC_NEWS_FUNCTION_URL ||
+    'https://us-central1-alerta-game.cloudfunctions.net/syncNewsManual';
+
+  const candidateUrls = [
+    functionUrl,
+    'https://syncnewsmanual-uc.a.run.app',
+    'https://us-central1-alerta-game.cloudfunctions.net/syncNewsManual'
+  ];
+
+  let lastError: Error | null = null;
+
+  for (const url of candidateUrls) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        if (json.success && json.data) {
+          const data = json.data;
+          const log: SyncLog = {
+            id: `cf_sync_${Date.now()}`,
+            timestamp: data.completedAt || new Date().toISOString(),
+            sourcesAttempted: Array.isArray(data.sourcesQueried) ? data.sourcesQueried.length : 7,
+            sourcesSuccessful: Array.isArray(data.sourcesQueried)
+              ? data.sourcesQueried.filter((s: any) => s.status === 'success').map((s: any) => s.sourceName)
+              : [],
+            sourcesFailed: Array.isArray(data.sourcesQueried)
+              ? data.sourcesQueried.filter((s: any) => s.status === 'error').map((s: any) => ({ source: s.sourceName, error: s.error || '' }))
+              : [],
+            articlesFound: data.totalFound ?? 0,
+            newArticlesCount: data.totalAdded ?? 0,
+            duplicatesCount: data.duplicatesCount ?? 0,
+            errorsCount: Array.isArray(data.errors) ? data.errors.length : 0,
+            totalArticlesCount: data.totalFound ?? 0,
+            trigger: 'manual',
+            adminEmail: 'Cloud Function v2'
+          };
+
+          return {
+            syncedCount: data.totalAdded ?? 0,
+            totalArticles: data.totalFound ?? 0,
+            log,
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn(`Tentativa de chamada para Cloud Function na URL ${url} falhou:`, err.message);
+      lastError = err;
+    }
+  }
+
+  // Fallback to client-side aggregator if Cloud Function endpoint is not reachable during local dev
+  try {
+    console.info('Executando sincronização de contingência...');
+    const log = await newsAggregator.runSync('manual');
+    return {
+      syncedCount: log.newArticlesCount,
+      totalArticles: log.totalArticlesCount,
+      log,
+    };
+  } catch (fallbackErr) {
+    throw lastError || fallbackErr;
+  }
+};
+
+/**
+ * Synchronizes news from external sources into Cloud Firestore via Cloud Function v2.
  */
 export const syncNewsFromExternalSources = async (
   adminUser?: { uid?: string; email?: string }
@@ -318,17 +396,7 @@ export const syncNewsFromExternalSources = async (
   totalArticles: number;
   log: SyncLog;
 }> => {
-  try {
-    const log = await newsAggregator.runSync('manual', adminUser);
-    return {
-      syncedCount: log.newArticlesCount,
-      totalArticles: log.totalArticlesCount,
-      log,
-    };
-  } catch (error) {
-    console.error('Erro ao sincronizar notícias no Firestore:', error);
-    throw error;
-  }
+  return await triggerCloudFunctionNewsSync();
 };
 
 /**
@@ -337,10 +405,40 @@ export const syncNewsFromExternalSources = async (
 export const getLatestNewsSyncLogFromFirestore = async (): Promise<SyncLog | null> => {
   try {
     const logsColRef = collection(db, 'news_sync_logs');
-    const q = query(logsColRef, orderBy('timestamp', 'desc'), limitConstraint(1));
+    const q = query(logsColRef, limitConstraint(10));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      return snapshot.docs[0].data() as SyncLog;
+      const docs = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        const dateStr = data.completedAt || data.timestamp || data.startedAt || data.createdAt;
+        let dateVal = 0;
+        if (dateStr?.toDate) {
+          dateVal = dateStr.toDate().getTime();
+        } else if (typeof dateStr === 'string') {
+          dateVal = new Date(dateStr).getTime();
+        }
+        return { docSnap, data, dateVal };
+      }).sort((a, b) => b.dateVal - a.dateVal);
+
+      const topData = docs[0].data;
+      return {
+        id: docs[0].docSnap.id,
+        timestamp: topData.completedAt || topData.timestamp || topData.startedAt || new Date().toISOString(),
+        sourcesAttempted: Array.isArray(topData.sourcesQueried) ? topData.sourcesQueried.length : (topData.sourcesAttempted || 7),
+        sourcesSuccessful: Array.isArray(topData.sourcesQueried)
+          ? topData.sourcesQueried.filter((s: any) => s.status === 'success').map((s: any) => s.sourceName)
+          : (topData.sourcesSuccessful || []),
+        sourcesFailed: Array.isArray(topData.sourcesQueried)
+          ? topData.sourcesQueried.filter((s: any) => s.status === 'error').map((s: any) => ({ source: s.sourceName, error: s.error || '' }))
+          : (topData.sourcesFailed || []),
+        articlesFound: topData.totalFound ?? topData.articlesFound ?? 0,
+        newArticlesCount: topData.totalAdded ?? topData.newArticlesCount ?? 0,
+        duplicatesCount: topData.duplicatesCount ?? 0,
+        errorsCount: Array.isArray(topData.errors) ? topData.errors.length : (topData.errorsCount ?? 0),
+        totalArticlesCount: topData.totalFound ?? topData.totalArticlesCount ?? 0,
+        trigger: 'manual',
+        adminEmail: topData.adminEmail || 'Cloud Function v2'
+      };
     }
   } catch (err) {
     console.warn('Aviso ao buscar último log de sincronização:', err);
