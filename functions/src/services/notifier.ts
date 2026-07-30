@@ -28,6 +28,7 @@ export async function createPushNotificationDoc(
       read: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
+    console.log(`Notificação criada: ${params.title}`);
     return notifRef.id;
   } catch (err: any) {
     console.error('Erro ao registrar notificação push no Firestore:', err.message);

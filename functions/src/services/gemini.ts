@@ -162,6 +162,7 @@ Conteúdo Original: ${article.content || article.summary}`;
 export async function processArticleWithGemini(
   article: NewsArticleInput
 ): Promise<GeminiNewsAnalysis | null> {
+  console.log(`Gemini processando notícia: ${article.title}`);
   const ai = getGeminiClient();
   if (!ai) {
     return null;

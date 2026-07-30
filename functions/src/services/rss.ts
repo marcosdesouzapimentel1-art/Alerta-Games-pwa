@@ -129,6 +129,7 @@ export async function fetchRssFeed(feedConfig: RssFeedConfig): Promise<NewsArtic
       });
     }
 
+    console.log(`Fonte RSS carregada: ${feedConfig.sourceName} (${articles.length} notícias)`);
     return articles;
   } catch (error: any) {
     console.error(`Erro ao buscar RSS de ${feedConfig.sourceName} (${feedConfig.url}):`, error.message);
