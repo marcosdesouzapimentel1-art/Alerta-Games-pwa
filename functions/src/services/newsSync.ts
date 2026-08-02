@@ -127,7 +127,8 @@ try {
   console.error(err);
   throw err;
 }
-
+console.log("PASSOU DA LEITURA DO FIRESTORE");
+  
 const existingItems = existingSnapshot.docs.map((doc) => {
   const data = doc.data();
 
