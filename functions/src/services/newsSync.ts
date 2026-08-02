@@ -133,6 +133,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   const translationStartMs = Date.now();
 
   // Processar em lotes paralelos de 3 itens para não exceder limites de taxa
+  console.log("Iniciando processamento Gemini...");
   const geminiResults = await processBatchInParallel(
     uniqueArticles,
     3,
@@ -153,7 +154,9 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
       }
     }
   );
-
+console.log(
+  `Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`
+);
   const translationTime = Date.now() - translationStartMs;
 
   // 6. Preparar e gravar matérias traduzidas e enriquecidas no Firestore "news"
@@ -265,26 +268,30 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   // 7. Salvar estatísticas completas na coleção "news_sync_logs"
   try {
-    await db.collection('news_sync_logs').add({
-      startedAt,
-      completedAt,
-      durationMs,
-      executionTime,
-      totalFound,
-      totalAdded,
-      duplicatesCount,
-      geminiProcessed,
-      geminiErrors,
-      translationTime,
-      tokensUsed,
-      errors,
-      sourcesQueried,
-      status,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-  } catch (logErr: any) {
-    console.error('Erro ao salvar log em news_sync_logs:', logErr.message);
-  }
+  const logRef = await db.collection("news_sync_logs").add({
+    startedAt,
+    completedAt,
+    durationMs,
+    executionTime,
+    totalFound,
+    totalAdded,
+    duplicatesCount,
+    geminiProcessed,
+    geminiErrors,
+    translationTime,
+    tokensUsed,
+    errors,
+    sourcesQueried,
+    status,
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  console.log("Log salvo com sucesso:", logRef.id);
+
+} catch (err: any) {
+  console.error("Erro ao salvar news_sync_logs:");
+  console.error(err);
+}
 
   return result;
 }
