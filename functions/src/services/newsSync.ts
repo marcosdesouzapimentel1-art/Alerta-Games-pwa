@@ -110,7 +110,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   const totalFound = fetchedArticles.length;
 
-  // 3. Obter notícias existentes na subcoleção "news" do documento "default"
+// 3. Obter notícias existentes na subcoleção "news" do documento "default"
 console.log("Lendo coleção news...");
 
 let existingSnapshot;
@@ -132,7 +132,7 @@ try {
   throw err;
 }
 console.log("PASSOU DA LEITURA DO FIRESTORE");
-  
+
 const existingItems = existingSnapshot.docs.map((doc) => {
   const data = doc.data();
 

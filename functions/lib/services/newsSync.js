@@ -43,10 +43,13 @@ const translator_1 = require("./translator");
 const classifier_1 = require("./classifier");
 const seo_1 = require("./seo");
 const notifier_1 = require("./notifier");
+// Inicialização explícita com o ID da base padrão
 if (!admin.apps.length) {
     admin.initializeApp();
 }
+// Força a conexão direta no banco de dados (default)
 const db = admin.firestore();
+db.settings({ databaseId: '(default)' });
 /**
  * Executa chamadas assíncronas em lotes paralelos controlados
  */
@@ -108,22 +111,34 @@ async function runNewsSync() {
         }
     }
     const totalFound = fetchedArticles.length;
-    // 3. Obter notícias existentes na coleção "news" para deduplicação e verificação de cache
+    // 3. Obter notícias existentes na subcoleção "news" do documento "default"
     console.log("Lendo coleção news...");
-    const existingSnapshot = await db
-        .collection("news")
-        .orderBy("publishedAt", "desc")
-        .limit(350)
-        .get();
-    console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
+    let existingSnapshot;
+    try {
+        existingSnapshot = await db
+            .collection("default")
+            .doc("news")
+            .collection("news") // Se 'news' for subcoleção do doc 'news', ou direto .doc("default").collection("news")
+            .limit(350)
+            .get();
+        // Caso suas coleções estejam diretamente em default:
+        // existingSnapshot = await db.collection("default").doc("default").collection("news").get();
+        console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
+    }
+    catch (err) {
+        console.error("ERRO AO LER A COLEÇÃO NEWS", err);
+        throw err;
+    }
+    console.log("PASSOU DA LEITURA DO FIRESTORE");
     const existingItems = existingSnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
             id: doc.id,
-            url: data.url || '',
-            title: data.titleOriginal || data.title || ''
+            url: data.url || "",
+            title: data.titleOriginal || data.title || ""
         };
     });
+    console.log(`existingItems criado: ${existingItems.length}`);
     // 4. Filtrar matérias inéditas (deduplicação por URL, título e ID)
     const { uniqueArticles, duplicatesCount } = (0, deduplicate_1.deduplicateArticles)(fetchedArticles, existingItems);
     // 5. Processamento via Google Gemini AI

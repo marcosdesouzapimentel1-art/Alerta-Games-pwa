@@ -14,8 +14,7 @@ export const scheduledNewsSync = onSchedule(
     timeZone: 'America/Sao_Paulo',
     retryCount: 1,
     timeoutSeconds: 300,
-    memory: '512MiB',
-    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função agendada
+    memory: '512MiB'
   },
   async (event) => {
     console.log(`[Cloud Scheduler] Iniciando sincronização automática. Job: ${event.jobName || 'scheduledNewsSync'}`);
@@ -37,8 +36,7 @@ export const syncNewsManual = onRequest(
   {
     timeoutSeconds: 300,
     memory: '512MiB',
-    cors: true,
-    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função HTTP
+    cors: true
   },
   (req, res) => {
     return corsHandler(req, res, async () => {

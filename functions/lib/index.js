@@ -17,7 +17,8 @@ exports.scheduledNewsSync = (0, scheduler_1.onSchedule)({
     timeZone: 'America/Sao_Paulo',
     retryCount: 1,
     timeoutSeconds: 300,
-    memory: '512MiB'
+    memory: '512MiB',
+    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função agendada
 }, async (event) => {
     console.log(`[Cloud Scheduler] Iniciando sincronização automática. Job: ${event.jobName || 'scheduledNewsSync'}`);
     try {
@@ -34,7 +35,8 @@ exports.scheduledNewsSync = (0, scheduler_1.onSchedule)({
 exports.syncNewsManual = (0, https_1.onRequest)({
     timeoutSeconds: 300,
     memory: '512MiB',
-    cors: true
+    cors: true,
+    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função HTTP
 }, (req, res) => {
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST' && req.method !== 'GET') {
@@ -51,7 +53,12 @@ exports.syncNewsManual = (0, https_1.onRequest)({
             });
         }
         catch (error) {
-            console.error('[HTTP Manual] Erro na sincronização:', error.message);
+            console.error("========== ERRO COMPLETO ==========");
+            console.error(error);
+            console.error("Mensagem:", error?.message);
+            console.error("Código:", error?.code);
+            console.error("Stack:", error?.stack);
+            console.error("===================================");
             res.status(500).json({
                 success: false,
                 message: 'Erro ao executar sincronização manual de notícias',
