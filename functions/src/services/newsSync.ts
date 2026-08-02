@@ -110,22 +110,32 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   // 3. Obter notícias existentes na coleção "news" para deduplicação e verificação de cache
 console.log("Lendo coleção news...");
 
-const existingSnapshot = await db
-  .collection("news")
-  .orderBy("publishedAt", "desc")
-  .limit(350)
-  .get();
+let existingSnapshot;
 
-console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
+try {
+  existingSnapshot = await db
+    .collection("news")
+    .orderBy("publishedAt", "desc")
+    .limit(350)
+    .get();
 
-  const existingItems = existingSnapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      url: data.url || '',
-      title: data.titleOriginal || data.title || ''
-    };
-  });
+  console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
+} catch (err: any) {
+  console.error("ERRO AO LER A COLEÇÃO NEWS");
+  console.error("Código:", err.code);
+  console.error("Mensagem:", err.message);
+  console.error(err);
+  throw err;
+}
+
+const existingItems = existingSnapshot.docs.map((doc) => {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    url: data.url || "",
+    title: data.titleOriginal || data.title || ""
+  };
+});
 
   // 4. Filtrar matérias inéditas (deduplicação por URL, título e ID)
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
