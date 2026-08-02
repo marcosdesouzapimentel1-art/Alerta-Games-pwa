@@ -108,11 +108,15 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   const totalFound = fetchedArticles.length;
 
   // 3. Obter notícias existentes na coleção "news" para deduplicação e verificação de cache
-  const existingSnapshot = await db
-    .collection('news')
-    .orderBy('publishedAt', 'desc')
-    .limit(350)
-    .get();
+console.log("Lendo coleção news...");
+
+const existingSnapshot = await db
+  .collection("news")
+  .orderBy("publishedAt", "desc")
+  .limit(350)
+  .get();
+
+console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
 
   const existingItems = existingSnapshot.docs.map((doc) => {
     const data = doc.data();

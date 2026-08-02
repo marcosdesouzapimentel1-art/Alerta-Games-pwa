@@ -109,11 +109,13 @@ async function runNewsSync() {
     }
     const totalFound = fetchedArticles.length;
     // 3. Obter notícias existentes na coleção "news" para deduplicação e verificação de cache
+    console.log("Lendo coleção news...");
     const existingSnapshot = await db
-        .collection('news')
-        .orderBy('publishedAt', 'desc')
+        .collection("news")
+        .orderBy("publishedAt", "desc")
         .limit(350)
         .get();
+    console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
     const existingItems = existingSnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
@@ -130,6 +132,7 @@ async function runNewsSync() {
     let tokensUsed = 0;
     const translationStartMs = Date.now();
     // Processar em lotes paralelos de 3 itens para não exceder limites de taxa
+    console.log("Iniciando processamento Gemini...");
     const geminiResults = await processBatchInParallel(uniqueArticles, 3, async (article) => {
         try {
             const analysis = await (0, gemini_1.processArticleWithGemini)(article);
@@ -148,6 +151,7 @@ async function runNewsSync() {
             return { article, analysis: null };
         }
     });
+    console.log(`Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`);
     const translationTime = Date.now() - translationStartMs;
     // 6. Preparar e gravar matérias traduzidas e enriquecidas no Firestore "news"
     let totalAdded = 0;
@@ -240,7 +244,7 @@ async function runNewsSync() {
     };
     // 7. Salvar estatísticas completas na coleção "news_sync_logs"
     try {
-        await db.collection('news_sync_logs').add({
+        const logRef = await db.collection("news_sync_logs").add({
             startedAt,
             completedAt,
             durationMs,
@@ -257,9 +261,11 @@ async function runNewsSync() {
             status,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
+        console.log("Log salvo com sucesso:", logRef.id);
     }
-    catch (logErr) {
-        console.error('Erro ao salvar log em news_sync_logs:', logErr.message);
+    catch (err) {
+        console.error("Erro ao salvar news_sync_logs:");
+        console.error(err);
     }
     return result;
 }
