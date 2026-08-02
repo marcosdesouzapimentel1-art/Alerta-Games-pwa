@@ -115,16 +115,12 @@ let existingSnapshot;
 try {
   existingSnapshot = await db
     .collection("news")
-    .orderBy("publishedAt", "desc")
     .limit(350)
     .get();
 
   console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
 } catch (err: any) {
-  console.error("ERRO AO LER A COLEÇÃO NEWS");
-  console.error("Código:", err.code);
-  console.error("Mensagem:", err.message);
-  console.error(err);
+  console.error("ERRO AO LER A COLEÇÃO NEWS", err);
   throw err;
 }
 console.log("PASSOU DA LEITURA DO FIRESTORE");
