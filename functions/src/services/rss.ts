@@ -93,7 +93,7 @@ export async function fetchRssFeed(feedConfig: RssFeedConfig): Promise<NewsArtic
       if (!item.title || !item.link) continue;
 
       const title = cleanHtml(item.title);
-      const rawContent = (item as any).contentEncoded || item.content || item.summary || item.snippet || '';
+      const rawContent = (item as any).contentEncoded || (item as any).content || (item as any).summary || (item as any).snippet || '';
       const summary = cleanHtml(item.summary || item.contentSnippet || rawContent).slice(0, 300);
 
       let imageUrl: string | undefined;

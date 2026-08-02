@@ -126,6 +126,7 @@ async function fetchRssFeed(feedConfig) {
                 readTimeMinutes
             });
         }
+        console.log(`Fonte RSS carregada: ${feedConfig.sourceName} (${articles.length} notícias)`);
         return articles;
     }
     catch (error) {

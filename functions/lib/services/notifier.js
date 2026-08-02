@@ -50,6 +50,7 @@ async function createPushNotificationDoc(db, params) {
             read: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
+        console.log(`Notificação criada: ${params.title}`);
         return notifRef.id;
     }
     catch (err) {

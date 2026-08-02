@@ -133,6 +133,7 @@ Conteúdo Original: ${article.content || article.summary}`;
     return null;
 }
 async function processArticleWithGemini(article) {
+    console.log(`Gemini processando notícia: ${article.title}`);
     const ai = getGeminiClient();
     if (!ai) {
         return null;
