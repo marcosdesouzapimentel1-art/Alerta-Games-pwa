@@ -8,14 +8,19 @@ import { normalizeCategory, processKeywords } from './classifier';
 import { generateSeoData } from './seo';
 import { createPushNotificationDoc } from './notifier';
 
-// Inicialização explícita com o ID da base padrão
+// Inicialização explícita apontando para o projeto e banco correto
 if (!admin.apps.length) {
-  admin.initializeApp();
+  admin.initializeApp({
+    projectId: 'alerta-game'
+  });
 }
 
-// Força a conexão direta no banco de dados (default)
 const db = admin.firestore();
-db.settings({ databaseId: '(default)' });
+try {
+  db.settings({ databaseId: '(default)', ignoreUndefinedProperties: true });
+} catch (e) {
+  // Ignora se as configurações já tiverem sido aplicadas
+}
 
 export interface SourceQueryResult {
   sourceName: string;
@@ -110,40 +115,33 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   const totalFound = fetchedArticles.length;
 
-// 3. Obter notícias existentes na subcoleção "news" do documento "default"
-console.log("Lendo coleção news...");
+  // 3. Obter notícias existentes na coleção "news" com fallback de segurança
+  console.log("Lendo coleção news...");
 
-let existingSnapshot;
+  let existingDocs: any[] = [];
 
-try {
-  existingSnapshot = await db
-    .collection("default")
-    .doc("news")
-    .collection("news") // Se 'news' for subcoleção do doc 'news', ou direto .doc("default").collection("news")
-    .limit(350)
-    .get();
+  try {
+    const existingSnapshot = await db
+      .collection("news")
+      .limit(350)
+      .get();
 
-  // Caso suas coleções estejam diretamente em default:
-  // existingSnapshot = await db.collection("default").doc("default").collection("news").get();
+    existingDocs = existingSnapshot.docs;
+    console.log(`Coleção news carregada. Documentos: ${existingDocs.length}`);
+  } catch (err: any) {
+    console.error("AVISO AO LER COLEÇÃO NEWS (Bypassing deduplication):", err?.message || err);
+  }
 
-  console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
-} catch (err: any) {
-  console.error("ERRO AO LER A COLEÇÃO NEWS", err);
-  throw err;
-}
-console.log("PASSOU DA LEITURA DO FIRESTORE");
+  const existingItems = existingDocs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      url: data.url || "",
+      title: data.titleOriginal || data.title || ""
+    };
+  });
 
-const existingItems = existingSnapshot.docs.map((doc) => {
-  const data = doc.data();
-
-  return {
-    id: doc.id,
-    url: data.url || "",
-    title: data.titleOriginal || data.title || ""
-  };
-});
-
-console.log(`existingItems criado: ${existingItems.length}`);
+  console.log(`existingItems criado: ${existingItems.length}`);
 
   // 4. Filtrar matérias inéditas (deduplicação por URL, título e ID)
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
@@ -154,7 +152,6 @@ console.log(`existingItems criado: ${existingItems.length}`);
   let tokensUsed = 0;
   const translationStartMs = Date.now();
 
-  // Processar em lotes paralelos de 3 itens para não exceder limites de taxa
   console.log("Iniciando processamento Gemini...");
   const geminiResults = await processBatchInParallel(
     uniqueArticles,
@@ -176,9 +173,10 @@ console.log(`existingItems criado: ${existingItems.length}`);
       }
     }
   );
-console.log(
-  `Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`
-);
+
+  console.log(
+    `Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`
+  );
   const translationTime = Date.now() - translationStartMs;
 
   // 6. Preparar e gravar matérias traduzidas e enriquecidas no Firestore "news"
@@ -207,7 +205,7 @@ console.log(
           docRef,
           {
             id: article.id,
-            // Campos legados (retrocompatibilidade com frontend React)
+            // Campos legados
             title: translationData.titlePt,
             summary: translationData.summaryPt,
             content: translationData.summaryPt,
@@ -241,7 +239,6 @@ console.log(
           { merge: true }
         );
 
-        // Se for marcado para notificação (shouldNotify == true), registrar na coleção "notifications"
         if (shouldNotify) {
           createPushNotificationDoc(db, {
             title: translationData.titlePt,
@@ -290,30 +287,29 @@ console.log(
 
   // 7. Salvar estatísticas completas na coleção "news_sync_logs"
   try {
-  const logRef = await db.collection("news_sync_logs").add({
-    startedAt,
-    completedAt,
-    durationMs,
-    executionTime,
-    totalFound,
-    totalAdded,
-    duplicatesCount,
-    geminiProcessed,
-    geminiErrors,
-    translationTime,
-    tokensUsed,
-    errors,
-    sourcesQueried,
-    status,
-    createdAt: admin.firestore.FieldValue.serverTimestamp()
-  });
+    const logRef = await db.collection("news_sync_logs").add({
+      startedAt,
+      completedAt,
+      durationMs,
+      executionTime,
+      totalFound,
+      totalAdded,
+      duplicatesCount,
+      geminiProcessed,
+      geminiErrors,
+      translationTime,
+      tokensUsed,
+      errors,
+      sourcesQueried,
+      status,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
 
-  console.log("Log salvo com sucesso:", logRef.id);
-
-} catch (err: any) {
-  console.error("Erro ao salvar news_sync_logs:");
-  console.error(err);
-}
+    console.log("Log salvo com sucesso:", logRef.id);
+  } catch (err: any) {
+    console.error("Erro ao salvar news_sync_logs:");
+    console.error(err);
+  }
 
   return result;
 }
