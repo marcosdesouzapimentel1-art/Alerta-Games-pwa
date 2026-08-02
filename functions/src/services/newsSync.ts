@@ -130,12 +130,15 @@ try {
 
 const existingItems = existingSnapshot.docs.map((doc) => {
   const data = doc.data();
+
   return {
     id: doc.id,
     url: data.url || "",
     title: data.titleOriginal || data.title || ""
   };
 });
+
+console.log(`existingItems criado: ${existingItems.length}`);
 
   // 4. Filtrar matérias inéditas (deduplicação por URL, título e ID)
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
