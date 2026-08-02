@@ -53,8 +53,13 @@ export const syncNewsManual = onRequest(
           message: 'Notícias sincronizadas com sucesso!',
           data: result
         });
-      } catch (error: any) {
-        console.error('[HTTP Manual] Erro na sincronização:', error.message);
+  } catch (error: any) {
+        console.error("========== ERRO COMPLETO ==========");
+        console.error(error);
+        console.error("Mensagem:", error?.message);
+        console.error("Código:", error?.code);
+        console.error("Stack:", error?.stack);
+        console.error("===================================");
         res.status(500).json({
           success: false,
           message: 'Erro ao executar sincronização manual de notícias',
