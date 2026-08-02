@@ -8,11 +8,14 @@ import { normalizeCategory, processKeywords } from './classifier';
 import { generateSeoData } from './seo';
 import { createPushNotificationDoc } from './notifier';
 
+// Inicialização explícita com o ID da base padrão
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+// Força a conexão direta no banco de dados (default)
 const db = admin.firestore();
+db.settings({ databaseId: '(default)' });
 
 export interface SourceQueryResult {
   sourceName: string;
