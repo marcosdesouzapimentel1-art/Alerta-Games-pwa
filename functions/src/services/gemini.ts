@@ -42,16 +42,10 @@ export const ALLOWED_CATEGORIES = [
 function getGeminiClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
+    console.error('[Gemini API] ERRO: Nenhuma chave GEMINI_API_KEY encontrada em process.env');
     return null;
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build'
-      }
-    }
-  });
+  return new GoogleGenAI({ apiKey });
 }
 
 const SYSTEM_INSTRUCTION = `Você é um editor sênior de jornalismo gamer especializado em localização e análise de notícias do Alerta Game.
@@ -89,13 +83,12 @@ Conteúdo Original: ${article.content || article.summary}`;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // Timeout de 15 segundos por chamada
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout na chamada do Gemini API (15s)')), 15000)
+        setTimeout(() => reject(new Error('Timeout na chamada do Gemini API (20s)')), 20000)
       );
 
       const apiPromise = ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-2.5-flash', // Modelo correto e atualizado
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
@@ -134,25 +127,23 @@ Conteúdo Original: ${article.content || article.summary}`;
       const jsonText = response?.text?.trim();
 
       if (!jsonText) {
-        throw new Error('Resposta do Gemini vazia');
+        throw new Error('Resposta do Gemini veio vazia');
       }
 
       const parsed: GeminiNewsAnalysis = JSON.parse(jsonText);
       parsed.tokensUsed = response?.usageMetadata?.totalTokenCount || 150;
 
-      // Garantir limites no summary_pt
       if (parsed.summary_pt && parsed.summary_pt.length > 350) {
         parsed.summary_pt = parsed.summary_pt.slice(0, 347) + '...';
       }
 
       return parsed;
     } catch (err: any) {
-      console.warn(`[Gemini API] Tentativa ${attempt}/${retries} falhou para "${article.title}":`, err.message);
+      console.error(`[Gemini API Erro] Tentativa ${attempt}/${retries} falhou para "${article.title}":`, err.message || err);
       if (attempt === retries) {
         return null;
       }
-      // Esperar brevemente antes do retry
-      await new Promise((res) => setTimeout(res, 1000 * attempt));
+      await new Promise((res) => setTimeout(res, 1500 * attempt));
     }
   }
 
