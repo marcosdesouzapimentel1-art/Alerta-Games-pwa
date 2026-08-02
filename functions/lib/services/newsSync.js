@@ -43,13 +43,19 @@ const translator_1 = require("./translator");
 const classifier_1 = require("./classifier");
 const seo_1 = require("./seo");
 const notifier_1 = require("./notifier");
-// Inicialização explícita com o ID da base padrão
+// Inicialização explícita apontando para o projeto e banco correto
 if (!admin.apps.length) {
-    admin.initializeApp();
+    admin.initializeApp({
+        projectId: 'alerta-game'
+    });
 }
-// Força a conexão direta no banco de dados (default)
 const db = admin.firestore();
-db.settings({ databaseId: '(default)' });
+try {
+    db.settings({ databaseId: '(default)', ignoreUndefinedProperties: true });
+}
+catch (e) {
+    // Ignora se as configurações já tiverem sido aplicadas
+}
 /**
  * Executa chamadas assíncronas em lotes paralelos controlados
  */
@@ -111,26 +117,21 @@ async function runNewsSync() {
         }
     }
     const totalFound = fetchedArticles.length;
-    // 3. Obter notícias existentes na subcoleção "news" do documento "default"
+    // 3. Obter notícias existentes na coleção "news" com fallback de segurança
     console.log("Lendo coleção news...");
-    let existingSnapshot;
+    let existingDocs = [];
     try {
-        existingSnapshot = await db
-            .collection("default")
-            .doc("news")
-            .collection("news") // Se 'news' for subcoleção do doc 'news', ou direto .doc("default").collection("news")
+        const existingSnapshot = await db
+            .collection("news")
             .limit(350)
             .get();
-        // Caso suas coleções estejam diretamente em default:
-        // existingSnapshot = await db.collection("default").doc("default").collection("news").get();
-        console.log(`Coleção news carregada. Documentos: ${existingSnapshot.size}`);
+        existingDocs = existingSnapshot.docs;
+        console.log(`Coleção news carregada. Documentos: ${existingDocs.length}`);
     }
     catch (err) {
-        console.error("ERRO AO LER A COLEÇÃO NEWS", err);
-        throw err;
+        console.error("AVISO AO LER COLEÇÃO NEWS (Bypassing deduplication):", err?.message || err);
     }
-    console.log("PASSOU DA LEITURA DO FIRESTORE");
-    const existingItems = existingSnapshot.docs.map((doc) => {
+    const existingItems = existingDocs.map((doc) => {
         const data = doc.data();
         return {
             id: doc.id,
@@ -146,7 +147,6 @@ async function runNewsSync() {
     let geminiErrors = 0;
     let tokensUsed = 0;
     const translationStartMs = Date.now();
-    // Processar em lotes paralelos de 3 itens para não exceder limites de taxa
     console.log("Iniciando processamento Gemini...");
     const geminiResults = await processBatchInParallel(uniqueArticles, 3, async (article) => {
         try {
@@ -187,7 +187,7 @@ async function runNewsSync() {
                 const docRef = db.collection('news').doc(article.id);
                 batch.set(docRef, {
                     id: article.id,
-                    // Campos legados (retrocompatibilidade com frontend React)
+                    // Campos legados
                     title: translationData.titlePt,
                     summary: translationData.summaryPt,
                     content: translationData.summaryPt,
@@ -216,7 +216,6 @@ async function runNewsSync() {
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
-                // Se for marcado para notificação (shouldNotify == true), registrar na coleção "notifications"
                 if (shouldNotify) {
                     (0, notifier_1.createPushNotificationDoc)(db, {
                         title: translationData.titlePt,
