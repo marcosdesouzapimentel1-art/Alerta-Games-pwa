@@ -8,19 +8,16 @@ import { normalizeCategory, processKeywords } from './classifier';
 import { generateSeoData } from './seo';
 import { createPushNotificationDoc } from './notifier';
 
-// Inicialização explícita apontando para o projeto e banco correto
+// 1. Inicialização segura do Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp({
     projectId: 'alerta-game'
   });
 }
 
+// 2. Instância limpa do Firestore (sem db.settings forçado)
 const db = admin.firestore();
-try {
-  db.settings({ databaseId: '(default)', ignoreUndefinedProperties: true });
-} catch (e) {
-  // Ignora se as configurações já tiverem sido aplicadas
-}
+db.settings({ ignoreUndefinedProperties: true });
 
 export interface SourceQueryResult {
   sourceName: string;
@@ -129,7 +126,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     existingDocs = existingSnapshot.docs;
     console.log(`Coleção news carregada. Documentos: ${existingDocs.length}`);
   } catch (err: any) {
-    console.error("AVISO AO LER COLEÇÃO NEWS (Bypassing deduplication):", err?.message || err);
+    console.warn("AVISO AO LER COLEÇÃO NEWS (Bypassing deduplication):", err?.message || err);
   }
 
   const existingItems = existingDocs.map((doc) => {
@@ -143,7 +140,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   console.log(`existingItems criado: ${existingItems.length}`);
 
-  // 4. Filtrar matérias inéditas (deduplicação por URL, título e ID)
+  // 4. Filtrar matérias inéditas
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
 
   // 5. Processamento via Google Gemini AI
@@ -155,9 +152,10 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   console.log("Iniciando processamento Gemini...");
   const geminiResults = await processBatchInParallel(
     uniqueArticles,
-    3,
+    1, // Processa de 1 em 1 para garantir estabilidade
     async (article) => {
       try {
+        await new Promise((res) => setTimeout(res, 500));
         const analysis = await processArticleWithGemini(article);
         if (analysis) {
           geminiProcessed++;
@@ -174,12 +172,10 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     }
   );
 
-  console.log(
-    `Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`
-  );
+  console.log(`Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`);
   const translationTime = Date.now() - translationStartMs;
 
-  // 6. Preparar e gravar matérias traduzidas e enriquecidas no Firestore "news"
+  // 6. Gravar matérias traduzidas no Firestore "news"
   let totalAdded = 0;
 
   if (geminiResults.length > 0) {
@@ -205,7 +201,6 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
           docRef,
           {
             id: article.id,
-            // Campos legados
             title: translationData.titlePt,
             summary: translationData.summaryPt,
             content: translationData.summaryPt,
@@ -219,7 +214,6 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
             views: 0,
             likes: 0,
 
-            // Novos campos Gemini AI
             titleOriginal: translationData.titleOriginal,
             descriptionOriginal: translationData.descriptionOriginal,
             contentOriginal: translationData.contentOriginal,
@@ -285,31 +279,19 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     status
   };
 
-  // 7. Salvar estatísticas completas na coleção "news_sync_logs"
+  // 7. Salvar log com fallback
   try {
     const logRef = await db.collection("news_sync_logs").add({
-      startedAt,
-      completedAt,
-      durationMs,
-      executionTime,
-      totalFound,
-      totalAdded,
-      duplicatesCount,
-      geminiProcessed,
-      geminiErrors,
-      translationTime,
-      tokensUsed,
-      errors,
-      sourcesQueried,
-      status,
+      ...result,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
-
     console.log("Log salvo com sucesso:", logRef.id);
   } catch (err: any) {
-    console.error("Erro ao salvar news_sync_logs:");
-    console.error(err);
+    console.error("Erro ao salvar news_sync_logs:", err?.message || err);
   }
+
+  return result;
+}
 
   return result;
 }
