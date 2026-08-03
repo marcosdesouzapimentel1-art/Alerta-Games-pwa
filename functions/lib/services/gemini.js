@@ -67,7 +67,7 @@ Conteúdo Original: ${article.content || article.summary}`;
         try {
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na chamada do Gemini API (20s)')), 20000));
             const apiPromise = ai.models.generateContent({
-                model: 'gemini-2.5-flash', // Modelo correto e atualizado
+                model: 'gemini-1.5-flash', // Modelo correto e atualizado
                 contents: prompt,
                 config: {
                     systemInstruction: SYSTEM_INSTRUCTION,
