@@ -5,17 +5,21 @@ import { runNewsSync } from './services/newsSync';
 
 const corsHandler = cors({ origin: true });
 
+// Região padrão das funções
+const REGION = 'us-central1';
+
 /**
  * Cloud Function Agendada v2: Executa a cada 10 minutos
  */
 export const scheduledNewsSync = onSchedule(
   {
+    region: REGION,
     schedule: 'every 10 minutes',
     timeZone: 'America/Sao_Paulo',
     retryCount: 1,
     timeoutSeconds: 300,
     memory: '512MiB',
-    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função agendada
+    secrets: ['GEMINI_API_KEY']
   },
   async (event) => {
     console.log(`[Cloud Scheduler] Iniciando sincronização automática. Job: ${event.jobName || 'scheduledNewsSync'}`);
@@ -35,10 +39,11 @@ export const scheduledNewsSync = onSchedule(
  */
 export const syncNewsManual = onRequest(
   {
+    region: REGION,
     timeoutSeconds: 300,
     memory: '512MiB',
     cors: true,
-    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função HTTP
+    secrets: ['GEMINI_API_KEY']
   },
   (req, res) => {
     return corsHandler(req, res, async () => {
