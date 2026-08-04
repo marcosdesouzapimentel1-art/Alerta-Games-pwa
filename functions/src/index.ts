@@ -1,7 +1,15 @@
+import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
+
+// Inicializa o Firebase Admin garantindo conexão ao banco padrão (default)
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+export const db = getFirestore('(default)');
 
 const corsHandler = cors({ origin: true });
 
