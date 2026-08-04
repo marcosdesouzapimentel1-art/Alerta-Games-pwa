@@ -5,15 +5,13 @@ import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 
-// Inicializa o Firebase Admin garantindo conexão ao banco padrão (default)
+// Inicializa o Firebase Admin apontando para o banco padrão
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 export const db = getFirestore('(default)');
 
 const corsHandler = cors({ origin: true });
-
-// Região padrão das funções
 const REGION = 'us-central1';
 
 /**
