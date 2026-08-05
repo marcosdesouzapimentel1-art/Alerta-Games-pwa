@@ -1,13 +1,12 @@
 /* Service Worker for Alerta Game PWA */
-const CACHE_NAME = 'alerta-game-cache-v1';
+const CACHE_NAME = 'alerta-game-cache-v2';
+
+// Em produção (Vite), apenas os arquivos públicos existem como rotas estáticas
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon.svg',
-  '/src/main.tsx',
-  '/src/App.tsx',
-  '/src/index.css'
+  '/icon.svg'
 ];
 
 // Install Event - Precache static shell assets
@@ -39,43 +38,58 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Stale-while-revalidate for assets, Network-first for navigation
+// Fetch Event - Stale-while-revalidate & Fallbacks seguros
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Handle HTML navigation (Network first, fallback to cached index.html)
+  // Ignorar chamadas de extensão ou esquemas que não sejam HTTP/HTTPS (ex: chrome-extension://)
+  if (!url.protocol.startsWith('http')) return;
+
+  // 1. Navegação de Páginas HTML (Network First -> Fallback para index.html)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
         })
-        .catch(() => {
-          return caches.match('/') || caches.match('/index.html');
+        .catch(async () => {
+          const cachedNavigate = await caches.match(event.request);
+          if (cachedNavigate) return cachedNavigate;
+          
+          const indexFallback = await caches.match('/index.html') || await caches.match('/');
+          if (indexFallback) return indexFallback;
+
+          return new Response('Conteúdo offline indisponível', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          });
         })
     );
     return;
   }
 
-  // Handle static assets & images (Stale while revalidate)
+  // 2. Assets Estáticos, Imagens e Recursos (Stale-While-Revalidate)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch(() => {
+          // Garante retorno de um objeto Response válido caso a rede e o cache falhem
+          return cachedResponse || new Response('', { status: 408, statusText: 'Request Timeout' });
+        });
 
       return cachedResponse || fetchPromise;
     })
