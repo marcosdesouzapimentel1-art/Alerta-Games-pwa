@@ -5,17 +5,22 @@ import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 
-// Inicializa o Firebase Admin apontando para o banco padrão
+// Inicializa o Firebase Admin apontando para o projeto 'alerta-game' e banco '(default)'
 if (!admin.apps.length) {
-  admin.initializeApp();
+  admin.initializeApp({
+    projectId: 'alerta-game'
+  });
 }
+
 export const db = getFirestore('(default)');
 
 const corsHandler = cors({ origin: true });
-const REGION = 'us-central1';
+
+// Região configurada para São Paulo (onde o banco Firestore está localizado)
+const REGION = 'southamerica-east1';
 
 /**
- * Cloud Function Agendada v2: Executa a cada 10 minutos
+ * Cloud Function Agendada v2: Executa a cada 10 minutos em São Paulo
  */
 export const scheduledNewsSync = onSchedule(
   {
@@ -80,5 +85,7 @@ export const syncNewsManual = onRequest(
         });
       }
     });
+  }
+);
   }
 );
