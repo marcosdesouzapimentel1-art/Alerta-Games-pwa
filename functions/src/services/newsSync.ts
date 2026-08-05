@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import { db } from '../index'; // Reutiliza a instância única e configurada do Firestore no index.ts
+import { db } from '../index'; // Instância configurada vinda do index.ts
 import { fetchRawgNews } from './rawg';
 import { fetchRssFeed, RSS_FEEDS } from './rss';
 import { deduplicateArticles, NewsArticleInput } from '../utils/deduplicate';
@@ -31,6 +31,17 @@ export interface NewsSyncResult {
   errors: Array<{ source: string; message: string }>;
   sourcesQueried: SourceQueryResult[];
   status: 'success' | 'partial' | 'error';
+}
+
+/**
+ * Função utilitária para gerar IDs válidos no Firestore (sem barras ou caracteres especiais)
+ */
+function sanitizeDocId(rawId: string | undefined, fallbackUrl: string): string {
+  const target = rawId || fallbackUrl || String(Date.now());
+  return target
+    .replace(/https?:\/\//gi, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(-100); // Garante tamanho seguro
 }
 
 /**
@@ -103,20 +114,15 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   const totalFound = fetchedArticles.length;
 
   // 3. Obter notícias existentes na coleção "news"
-  console.log("Lendo coleção news...");
-
+  console.log("Lendo coleção news no Firestore...");
   let existingDocs: any[] = [];
 
   try {
-    const existingSnapshot = await db
-      .collection("news")
-      .limit(350)
-      .get();
-
+    const existingSnapshot = await db.collection("news").limit(350).get();
     existingDocs = existingSnapshot.docs;
-    console.log(`Coleção news carregada. Documentos: ${existingDocs.length}`);
+    console.log(`Coleção news carregada. Documentos encontrados: ${existingDocs.length}`);
   } catch (err: any) {
-    console.warn("AVISO AO LER COLEÇÃO NEWS (Bypassing deduplication):", err?.message || err);
+    console.warn("AVISO AO LER COLEÇÃO NEWS (Avançando sem deduplicação):", err?.message || err);
   }
 
   const existingItems = existingDocs.map((doc) => {
@@ -128,8 +134,6 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     };
   });
 
-  console.log(`existingItems criado: ${existingItems.length}`);
-
   // 4. Filtrar matérias inéditas
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
 
@@ -139,13 +143,13 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   let tokensUsed = 0;
   const translationStartMs = Date.now();
 
-  console.log("Iniciando processamento Gemini...");
+  console.log(`Iniciando processamento Gemini para ${uniqueArticles.length} notícias...`);
   const geminiResults = await processBatchInParallel(
     uniqueArticles,
-    1, // Processa de 1 em 1 para garantir estabilidade de cota
+    1, // Processa de 1 em 1 para garantir controle de cota
     async (article) => {
       try {
-        await new Promise((res) => setTimeout(res, 500));
+        await new Promise((res) => setTimeout(res, 400));
         const analysis = await processArticleWithGemini(article);
         if (analysis) {
           geminiProcessed++;
@@ -170,12 +174,13 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   if (geminiResults.length > 0) {
     const chunks = [];
-    for (let i = 0; i < geminiResults.length; i += 300) {
-      chunks.push(geminiResults.slice(i, i + 300));
+    for (let i = 0; i < geminiResults.length; i += 200) {
+      chunks.push(geminiResults.slice(i, i + 200));
     }
 
     for (const chunk of chunks) {
       const batch = db.batch();
+      let pendingInBatch = 0;
 
       for (const { article, analysis } of chunk) {
         const translationData = formatArticleTranslation(article, analysis);
@@ -185,12 +190,14 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
         const shouldNotify = Boolean(analysis?.shouldNotify);
         const seoData = generateSeoData(translationData.titlePt, translationData.summaryPt, analysis);
 
-        const docRef = db.collection('news').doc(article.id!);
+        // Gera ID seguro para o documento no Firestore
+        const docId = sanitizeDocId(article.id, article.url);
+        const docRef = db.collection('news').doc(docId);
 
         batch.set(
           docRef,
           {
-            id: article.id,
+            id: docId,
             title: translationData.titlePt,
             summary: translationData.summaryPt,
             content: translationData.summaryPt,
@@ -223,6 +230,8 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
           { merge: true }
         );
 
+        pendingInBatch++;
+
         if (shouldNotify) {
           createPushNotificationDoc(db, {
             title: translationData.titlePt,
@@ -232,12 +241,18 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
             category: finalCategory,
             importance,
             source: article.source
-          }).catch((err) => console.error('Erro na gravação assíncrona de notificação:', err));
+          }).catch((err) => console.error('Erro ao registrar notificação push:', err));
         }
       }
 
-      await batch.commit();
-      totalAdded += chunk.length;
+      if (pendingInBatch > 0) {
+        try {
+          await batch.commit();
+          totalAdded += pendingInBatch;
+        } catch (commitErr: any) {
+          console.error("Erro ao efetuar batch.commit() no Firestore:", commitErr?.message || commitErr);
+        }
+      }
     }
   }
 
@@ -269,15 +284,15 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     status
   };
 
-  // 7. Salvar log no Firestore
+  // 7. Salvar log de execução no Firestore
   try {
     const logRef = await db.collection("news_sync_logs").add({
       ...result,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    console.log("Log salvo com sucesso:", logRef.id);
+    console.log("Log de sincronização salvo com sucesso ID:", logRef.id);
   } catch (err: any) {
-    console.error("Erro ao salvar news_sync_logs:", err?.message || err);
+    console.error("Erro ao gravar log em news_sync_logs:", err?.message || err);
   }
 
   return result;
