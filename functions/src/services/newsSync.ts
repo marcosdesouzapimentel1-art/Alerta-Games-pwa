@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from '../index'; // Reutiliza a instância única e configurada do Firestore no index.ts
 import { fetchRawgNews } from './rawg';
 import { fetchRssFeed, RSS_FEEDS } from './rss';
 import { deduplicateArticles, NewsArticleInput } from '../utils/deduplicate';
@@ -8,15 +8,6 @@ import { formatArticleTranslation } from './translator';
 import { normalizeCategory, processKeywords } from './classifier';
 import { generateSeoData } from './seo';
 import { createPushNotificationDoc } from './notifier';
-
-// 1. Inicialização segura do Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-// 2. Instância do Firestore apontando explicitamente para o banco padrão (default)
-const db = getFirestore('(default)');
-db.settings({ ignoreUndefinedProperties: true });
 
 export interface SourceQueryResult {
   sourceName: string;
@@ -111,7 +102,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   const totalFound = fetchedArticles.length;
 
-  // 3. Obter notícias existentes na coleção "news" com fallback de segurança
+  // 3. Obter notícias existentes na coleção "news"
   console.log("Lendo coleção news...");
 
   let existingDocs: any[] = [];
@@ -151,7 +142,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   console.log("Iniciando processamento Gemini...");
   const geminiResults = await processBatchInParallel(
     uniqueArticles,
-    1, // Processa de 1 em 1 para garantir estabilidade
+    1, // Processa de 1 em 1 para garantir estabilidade de cota
     async (article) => {
       try {
         await new Promise((res) => setTimeout(res, 500));
@@ -278,7 +269,7 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
     status
   };
 
-  // 7. Salvar log com fallback
+  // 7. Salvar log no Firestore
   try {
     const logRef = await db.collection("news_sync_logs").add({
       ...result,
@@ -288,6 +279,9 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   } catch (err: any) {
     console.error("Erro ao salvar news_sync_logs:", err?.message || err);
   }
+
+  return result;
+}
 
   return result;
 }
