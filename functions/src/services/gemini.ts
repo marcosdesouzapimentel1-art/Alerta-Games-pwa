@@ -88,7 +88,7 @@ Conteúdo Original: ${article.content || article.summary}`;
       );
 
       const apiPromise = ai.models.generateContent({
-        model: 'gemini-3.6-flash', // Modelo correto e atualizado
+        model: 'gemini-2.5-flash', // Modelo correto e atualizado
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
