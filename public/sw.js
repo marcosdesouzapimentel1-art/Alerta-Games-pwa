@@ -1,7 +1,7 @@
 /* Service Worker for Alerta Game PWA */
 const CACHE_NAME = 'alerta-game-cache-v2';
 
-// Em produção (Vite), apenas os arquivos públicos existem como rotas estáticas
+// Em produção (Vite), apenas os arquivos públicos essenciais existem como rotas estáticas
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -44,8 +44,11 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Ignorar chamadas de extensão ou esquemas que não sejam HTTP/HTTPS (ex: chrome-extension://)
+  // Ignorar chamadas não-HTTP/HTTPS e requisições para APIs em tempo real (Firestore, Cloud Functions)
   if (!url.protocol.startsWith('http')) return;
+  if (url.hostname.includes('firestore.googleapis.com') || url.hostname.includes('cloudfunctions.net')) {
+    return; // Deixa o navegador/SDK manipular diretamente
+  }
 
   // 1. Navegação de Páginas HTML (Network First -> Fallback para index.html)
   if (event.request.mode === 'navigate') {
@@ -75,19 +78,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Assets Estáticos, Imagens e Recursos (Stale-While-Revalidate)
+  // 2. Assets Estáticos e Imagens de Notícias (Stale-While-Revalidate com suporte a CORS/CDNs)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          // Aceita respostas normais (basic), cors e opacas (304/opaque)
+          if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque' || networkResponse.type === 'cors')) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           }
           return networkResponse;
         })
         .catch(() => {
-          // Garante retorno de um objeto Response válido caso a rede e o cache falhem
           return cachedResponse || new Response('', { status: 408, statusText: 'Request Timeout' });
         });
 
