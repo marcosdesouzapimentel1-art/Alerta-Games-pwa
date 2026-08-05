@@ -282,6 +282,3 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   return result;
 }
-
-  return result;
-}
