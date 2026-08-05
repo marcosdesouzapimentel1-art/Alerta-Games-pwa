@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { fetchRawgNews } from './rawg';
 import { fetchRssFeed, RSS_FEEDS } from './rss';
 import { deduplicateArticles, NewsArticleInput } from '../utils/deduplicate';
@@ -10,13 +11,11 @@ import { createPushNotificationDoc } from './notifier';
 
 // 1. Inicialização segura do Firebase Admin
 if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: 'alerta-game'
-  });
+  admin.initializeApp();
 }
 
-// 2. Instância limpa do Firestore (sem db.settings forçado)
-const db = admin.firestore();
+// 2. Instância do Firestore apontando explicitamente para o banco padrão (default)
+const db = getFirestore('(default)');
 db.settings({ ignoreUndefinedProperties: true });
 
 export interface SourceQueryResult {
@@ -289,9 +288,6 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   } catch (err: any) {
     console.error("Erro ao salvar news_sync_logs:", err?.message || err);
   }
-
-  return result;
-}
 
   return result;
 }
