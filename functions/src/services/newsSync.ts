@@ -293,6 +293,3 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
 
   return result;
 }
-
-  return result;
-}
