@@ -1,4 +1,4 @@
-import * as admin from 'firebase-admin';
+import { Firestore, FieldValue } from 'firebase-admin/firestore';
 
 export interface CreateNotificationParams {
   title: string;
@@ -11,7 +11,7 @@ export interface CreateNotificationParams {
 }
 
 export async function createPushNotificationDoc(
-  db: admin.firestore.Firestore,
+  db: Firestore,
   params: CreateNotificationParams
 ): Promise<string | null> {
   try {
@@ -26,7 +26,7 @@ export async function createPushNotificationDoc(
       importance: params.importance,
       source: params.source,
       read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      createdAt: FieldValue.serverTimestamp()
     });
     console.log(`Notificação criada: ${params.title}`);
     return notifRef.id;
