@@ -55,7 +55,7 @@ Regras Estritas:
    - Lançamento ou review de grande jogo AAA.
    Caso contrário, defina como FALSE.
 8. SEO (seoTitle, seoDescription): Título chamativo para SEO gamer (até 60 caracteres) e meta descrição focada em cliques e engajamento (até 150 caracteres).`;
-async function callGeminiWithRetry(ai, article, retries = 2) {
+async function callGeminiWithRetry(ai, article, retries = 3) {
     const prompt = `Analise a seguinte notícia gamer:
 Fonte: ${article.source}
 URL: ${article.url}
@@ -65,9 +65,9 @@ Descrição Original: ${article.summary}
 Conteúdo Original: ${article.content || article.summary}`;
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na chamada do Gemini API (20s)')), 20000));
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout na chamada do Gemini API (30s)')), 30000));
             const apiPromise = ai.models.generateContent({
-                model: 'gemini-1.5-flash', // Modelo correto e atualizado
+                model: 'gemini-3.6-flash',
                 contents: prompt,
                 config: {
                     systemInstruction: SYSTEM_INSTRUCTION,
@@ -114,11 +114,12 @@ Conteúdo Original: ${article.content || article.summary}`;
             return parsed;
         }
         catch (err) {
-            console.error(`[Gemini API Erro] Tentativa ${attempt}/${retries} falhou para "${article.title}":`, err.message || err);
+            console.error(`[Gemini API Erro] Tentativa ${attempt}/${retries} falhou para "${article.title}":`, err?.message || err);
             if (attempt === retries) {
                 return null;
             }
-            await new Promise((res) => setTimeout(res, 1500 * attempt));
+            // Backoff exponencial para respeitar a cota de requisições por minuto (RPM)
+            await new Promise((res) => setTimeout(res, 2000 * attempt));
         }
     }
     return null;

@@ -17,7 +17,7 @@ async function fetchRawgNews() {
                 page_size: 10,
                 dates: `${thirtyDaysAgo},${today}`
             },
-            timeout: 10000
+            timeout: 20000 // Aumentado para 20s para prevenir "timeout of 10000ms exceeded"
         });
         const games = response.data?.results || [];
         const articles = [];
@@ -36,7 +36,8 @@ async function fetchRawgNews() {
                 category = 'Nintendo';
             else if (platformsStr.includes('pc'))
                 category = 'PC';
-            const imageUrl = game.background_image || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800';
+            // Substituição do Unsplash por ícone do PWA para evitar chamadas de imagens quebradas (404)
+            const imageUrl = game.background_image || '/icon.svg';
             articles.push({
                 title,
                 summary,
@@ -53,8 +54,9 @@ async function fetchRawgNews() {
         return articles;
     }
     catch (error) {
-        console.error('Erro ao buscar notícias do RAWG API:', error.message);
-        throw error;
+        console.error('Erro ao buscar notícias do RAWG API (a rota prosseguirá com feeds RSS):', error.message);
+        // Retorna array vazio em caso de falha da API externa para não interromper os feeds RSS
+        return [];
     }
 }
 //# sourceMappingURL=rawg.js.map

@@ -1,0 +1,21 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAXMg-Cl8hk7JA5SZpBPZ2bG-u90fLJzdA",
+  authDomain: "alerta-game.firebaseapp.com",
+  projectId: "alerta-game",
+  storageBucket: "alerta-game.firebasestorage.app",
+  messagingSenderId: "747965079617",
+  appId: "1:747965079617:web:52ed39215f28c4ecfee6c0",
+  measurementId: "G-MVSJXDZVKD"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);

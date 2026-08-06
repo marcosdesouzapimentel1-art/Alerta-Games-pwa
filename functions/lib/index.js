@@ -3,22 +3,34 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncNewsManual = exports.scheduledNewsSync = void 0;
+exports.syncNewsManual = exports.scheduledNewsSync = exports.db = void 0;
+const app_1 = require("firebase-admin/app");
+const firestore_1 = require("firebase-admin/firestore");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
 const cors_1 = __importDefault(require("cors"));
 const newsSync_1 = require("./services/newsSync");
+// Inicialização segura usando a API modular do Firebase Admin App
+if (!(0, app_1.getApps)().length) {
+    (0, app_1.initializeApp)({
+        projectId: 'alerta-game'
+    });
+}
+exports.db = (0, firestore_1.getFirestore)('(default)');
 const corsHandler = (0, cors_1.default)({ origin: true });
+// Região configurada para São Paulo
+const REGION = 'southamerica-east1';
 /**
- * Cloud Function Agendada v2: Executa a cada 10 minutos
+ * Cloud Function Agendada v2: Executa a cada 10 minutos em São Paulo
  */
 exports.scheduledNewsSync = (0, scheduler_1.onSchedule)({
+    region: REGION,
     schedule: 'every 10 minutes',
     timeZone: 'America/Sao_Paulo',
     retryCount: 1,
     timeoutSeconds: 300,
     memory: '512MiB',
-    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função agendada
+    secrets: ['GEMINI_API_KEY']
 }, async (event) => {
     console.log(`[Cloud Scheduler] Iniciando sincronização automática. Job: ${event.jobName || 'scheduledNewsSync'}`);
     try {
@@ -33,10 +45,11 @@ exports.scheduledNewsSync = (0, scheduler_1.onSchedule)({
  * Função HTTP: Sincronização manual acionada pelo Painel Administrativo
  */
 exports.syncNewsManual = (0, https_1.onRequest)({
+    region: REGION,
     timeoutSeconds: 300,
     memory: '512MiB',
     cors: true,
-    secrets: ['GEMINI_API_KEY'] // Habilita o secret na função HTTP
+    secrets: ['GEMINI_API_KEY']
 }, (req, res) => {
     return corsHandler(req, res, async () => {
         if (req.method !== 'POST' && req.method !== 'GET') {
