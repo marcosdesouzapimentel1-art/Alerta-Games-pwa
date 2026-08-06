@@ -1,5 +1,5 @@
-import * as admin from 'firebase-admin';
-import { db } from '../index'; // Instância configurada vinda do index.ts
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../index'; // Instância configurada do Firestore no index.ts
 import { fetchRawgNews } from './rawg';
 import { fetchRssFeed, RSS_FEEDS } from './rss';
 import { deduplicateArticles, NewsArticleInput } from '../utils/deduplicate';
@@ -136,7 +136,7 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
   // 4. Filtrar matérias inéditas
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
 
-  // 🔴 CORREÇÃO CRÍTICA DE TIMEOUT: Limita o lote de envio ao Gemini por execução (padrão: 5 matérias)
+  // Limita o lote de envio ao Gemini por execução (padrão: 5 matérias)
   const articlesToProcess = uniqueArticles.slice(0, maxArticlesPerSync);
 
   // 5. Processamento via Google Gemini AI
@@ -224,8 +224,8 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
           translatedAt: translationData.translatedAt,
           geminiVersion: translationData.geminiVersion,
 
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         { merge: true }
       );
@@ -285,11 +285,14 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
   try {
     await db.collection("news_sync_logs").add({
       ...result,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      createdAt: FieldValue.serverTimestamp()
     });
   } catch (err: any) {
     console.error("Erro ao gravar log em news_sync_logs:", err?.message || err);
   }
+
+  return result;
+}
 
   return result;
 }
