@@ -1,13 +1,13 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 
-// Inicializa o Firebase Admin apontando para o projeto 'alerta-game' e banco '(default)'
-if (!admin.apps.length) {
-  admin.initializeApp({
+// Inicialização segura usando a API modular do Firebase Admin App
+if (!getApps().length) {
+  initializeApp({
     projectId: 'alerta-game'
   });
 }
@@ -16,7 +16,7 @@ export const db = getFirestore('(default)');
 
 const corsHandler = cors({ origin: true });
 
-// Região configurada para São Paulo (onde o banco Firestore está localizado)
+// Região configurada para São Paulo
 const REGION = 'southamerica-east1';
 
 /**
