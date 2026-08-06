@@ -34,18 +34,18 @@ export interface NewsSyncResult {
 }
 
 /**
- * Função utilitária para gerar IDs válidos no Firestore (sem barras ou caracteres especiais)
+ * Gerar IDs válidos no Firestore (sem barras ou caracteres especiais)
  */
 function sanitizeDocId(rawId: string | undefined, fallbackUrl: string): string {
   const target = rawId || fallbackUrl || String(Date.now());
   return target
     .replace(/https?:\/\//gi, '')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
-    .slice(-100); // Garante tamanho seguro
+    .slice(-100);
 }
 
 /**
- * Executa chamadas assíncronas em lotes paralelos controlados
+ * Executa chamadas assíncronas em lotes
  */
 async function processBatchInParallel<T, R>(
   items: T[],
@@ -61,7 +61,7 @@ async function processBatchInParallel<T, R>(
   return results;
 }
 
-export async function runNewsSync(): Promise<NewsSyncResult> {
+export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsSyncResult> {
   const startedAt = new Date().toISOString();
   const startTimeMs = Date.now();
 
@@ -113,14 +113,13 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   const totalFound = fetchedArticles.length;
 
-  // 3. Obter notícias existentes na coleção "news"
+  // 3. Obter notícias existentes na coleção "news" para deduplicação
   console.log("Lendo coleção news no Firestore...");
   let existingDocs: any[] = [];
 
   try {
     const existingSnapshot = await db.collection("news").limit(350).get();
     existingDocs = existingSnapshot.docs;
-    console.log(`Coleção news carregada. Documentos encontrados: ${existingDocs.length}`);
   } catch (err: any) {
     console.warn("AVISO AO LER COLEÇÃO NEWS (Avançando sem deduplicação):", err?.message || err);
   }
@@ -137,19 +136,23 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   // 4. Filtrar matérias inéditas
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
 
+  // 🔴 CORREÇÃO CRÍTICA DE TIMEOUT: Limita o lote de envio ao Gemini por execução (padrão: 5 matérias)
+  const articlesToProcess = uniqueArticles.slice(0, maxArticlesPerSync);
+
   // 5. Processamento via Google Gemini AI
   let geminiProcessed = 0;
   let geminiErrors = 0;
   let tokensUsed = 0;
   const translationStartMs = Date.now();
 
-  console.log(`Iniciando processamento Gemini para ${uniqueArticles.length} notícias...`);
+  console.log(`Iniciando Gemini para lote de ${articlesToProcess.length} notícias (total pendentes: ${uniqueArticles.length})...`);
+  
   const geminiResults = await processBatchInParallel(
-    uniqueArticles,
-    1, // Processa de 1 em 1 para garantir controle de cota
+    articlesToProcess,
+    1, // Processa de 1 em 1 para garantir estabilidade de cota
     async (article) => {
       try {
-        await new Promise((res) => setTimeout(res, 400));
+        await new Promise((res) => setTimeout(res, 300));
         const analysis = await processArticleWithGemini(article);
         if (analysis) {
           geminiProcessed++;
@@ -157,13 +160,18 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
           return { article, analysis };
         } else {
           geminiErrors++;
-          return { article, analysis: null };
+          return null;
         }
       } catch (gemErr) {
         geminiErrors++;
-        return { article, analysis: null };
+        return null;
       }
     }
+  );
+
+  // Filtra falhas do Gemini
+  const validResults = geminiResults.filter(
+    (item): item is { article: NewsArticleInput; analysis: GeminiNewsAnalysis } => item !== null
   );
 
   console.log(`Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`);
@@ -172,87 +180,76 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
   // 6. Gravar matérias traduzidas no Firestore "news"
   let totalAdded = 0;
 
-  if (geminiResults.length > 0) {
-    const chunks = [];
-    for (let i = 0; i < geminiResults.length; i += 200) {
-      chunks.push(geminiResults.slice(i, i + 200));
+  if (validResults.length > 0) {
+    const batch = db.batch();
+
+    for (const { article, analysis } of validResults) {
+      const translationData = formatArticleTranslation(article, analysis);
+      const finalCategory = normalizeCategory(analysis?.category, article.category);
+      const keywords = processKeywords(analysis?.keywords, translationData.titlePt, article.source);
+      const importance = typeof analysis?.importance === 'number' ? analysis.importance : 50;
+      const shouldNotify = Boolean(analysis?.shouldNotify);
+      const seoData = generateSeoData(translationData.titlePt, translationData.summaryPt, analysis);
+
+      const docId = sanitizeDocId(article.id, article.url);
+      const docRef = db.collection('news').doc(docId);
+
+      batch.set(
+        docRef,
+        {
+          id: docId,
+          title: translationData.titlePt,
+          summary: translationData.summaryPt,
+          content: translationData.summaryPt,
+          url: article.url,
+          imageUrl: article.imageUrl || article.image || '',
+          image: article.imageUrl || article.image || '',
+          source: article.source,
+          category: finalCategory,
+          publishedAt: article.publishedAt,
+          readTimeMinutes: article.readTimeMinutes || 3,
+          views: 0,
+          likes: 0,
+
+          titleOriginal: translationData.titleOriginal,
+          descriptionOriginal: translationData.descriptionOriginal,
+          contentOriginal: translationData.contentOriginal,
+          titlePt: translationData.titlePt,
+          summaryPt: translationData.summaryPt,
+          keywords,
+          importance,
+          shouldNotify,
+          seoTitle: seoData.seoTitle,
+          seoDescription: seoData.seoDescription,
+          translatedAt: translationData.translatedAt,
+          geminiVersion: translationData.geminiVersion,
+
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        { merge: true }
+      );
+
+      totalAdded++;
+
+      if (shouldNotify) {
+        createPushNotificationDoc(db, {
+          title: translationData.titlePt,
+          body: translationData.summaryPt,
+          image: article.imageUrl || article.image || '',
+          url: article.url,
+          category: finalCategory,
+          importance,
+          source: article.source
+        }).catch((err) => console.error('Erro ao registrar notificação push:', err));
+      }
     }
 
-    for (const chunk of chunks) {
-      const batch = db.batch();
-      let pendingInBatch = 0;
-
-      for (const { article, analysis } of chunk) {
-        const translationData = formatArticleTranslation(article, analysis);
-        const finalCategory = normalizeCategory(analysis?.category, article.category);
-        const keywords = processKeywords(analysis?.keywords, translationData.titlePt, article.source);
-        const importance = typeof analysis?.importance === 'number' ? analysis.importance : 50;
-        const shouldNotify = Boolean(analysis?.shouldNotify);
-        const seoData = generateSeoData(translationData.titlePt, translationData.summaryPt, analysis);
-
-        // Gera ID seguro para o documento no Firestore
-        const docId = sanitizeDocId(article.id, article.url);
-        const docRef = db.collection('news').doc(docId);
-
-        batch.set(
-          docRef,
-          {
-            id: docId,
-            title: translationData.titlePt,
-            summary: translationData.summaryPt,
-            content: translationData.summaryPt,
-            url: article.url,
-            imageUrl: article.imageUrl || article.image || '',
-            image: article.imageUrl || article.image || '',
-            source: article.source,
-            category: finalCategory,
-            publishedAt: article.publishedAt,
-            readTimeMinutes: article.readTimeMinutes || 3,
-            views: 0,
-            likes: 0,
-
-            titleOriginal: translationData.titleOriginal,
-            descriptionOriginal: translationData.descriptionOriginal,
-            contentOriginal: translationData.contentOriginal,
-            titlePt: translationData.titlePt,
-            summaryPt: translationData.summaryPt,
-            keywords,
-            importance,
-            shouldNotify,
-            seoTitle: seoData.seoTitle,
-            seoDescription: seoData.seoDescription,
-            translatedAt: translationData.translatedAt,
-            geminiVersion: translationData.geminiVersion,
-
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-          },
-          { merge: true }
-        );
-
-        pendingInBatch++;
-
-        if (shouldNotify) {
-          createPushNotificationDoc(db, {
-            title: translationData.titlePt,
-            body: translationData.summaryPt,
-            image: article.imageUrl || article.image || '',
-            url: article.url,
-            category: finalCategory,
-            importance,
-            source: article.source
-          }).catch((err) => console.error('Erro ao registrar notificação push:', err));
-        }
-      }
-
-      if (pendingInBatch > 0) {
-        try {
-          await batch.commit();
-          totalAdded += pendingInBatch;
-        } catch (commitErr: any) {
-          console.error("Erro ao efetuar batch.commit() no Firestore:", commitErr?.message || commitErr);
-        }
-      }
+    try {
+      await batch.commit();
+      console.log(`Sucesso: ${totalAdded} matérias salvas no Firestore.`);
+    } catch (commitErr: any) {
+      console.error("Erro ao efetuar batch.commit() no Firestore:", commitErr?.message || commitErr);
     }
   }
 
@@ -286,11 +283,10 @@ export async function runNewsSync(): Promise<NewsSyncResult> {
 
   // 7. Salvar log de execução no Firestore
   try {
-    const logRef = await db.collection("news_sync_logs").add({
+    await db.collection("news_sync_logs").add({
       ...result,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    console.log("Log de sincronização salvo com sucesso ID:", logRef.id);
   } catch (err: any) {
     console.error("Erro ao gravar log em news_sync_logs:", err?.message || err);
   }
