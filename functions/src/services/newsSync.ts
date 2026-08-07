@@ -177,7 +177,7 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
         ? formatArticleTranslation(article, analysis)
         : {
             titlePt: article.title,
-            summaryPt: article.summary || article.description || '',
+            summaryPt: article.summary || article.content || '',
             contentPt: article.content || article.summary || '',
             titleOriginal: article.title,
             descriptionOriginal: article.summary || '',
