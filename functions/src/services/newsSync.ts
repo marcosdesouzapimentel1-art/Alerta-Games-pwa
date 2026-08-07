@@ -33,9 +33,6 @@ export interface NewsSyncResult {
   status: 'success' | 'partial' | 'error';
 }
 
-/**
- * Gerar IDs válidos no Firestore (sem barras ou caracteres especiais)
- */
 function sanitizeDocId(rawId: string | undefined, fallbackUrl: string): string {
   const target = rawId || fallbackUrl || String(Date.now());
   return target
@@ -44,9 +41,6 @@ function sanitizeDocId(rawId: string | undefined, fallbackUrl: string): string {
     .slice(-100);
 }
 
-/**
- * Executa chamadas assíncronas em lotes
- */
 async function processBatchInParallel<T, R>(
   items: T[],
   batchSize: number,
@@ -113,7 +107,7 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
 
   const totalFound = fetchedArticles.length;
 
-  // 3. Obter notícias existentes na coleção "news" para deduplicação
+  // 3. Obter notícias existentes para deduplicação
   console.log("Lendo coleção news no Firestore...");
   let existingDocs: any[] = [];
 
@@ -135,11 +129,9 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
 
   // 4. Filtrar matérias inéditas
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
-
-  // Limita o lote de envio ao Gemini por execução (padrão: 5 matérias)
   const articlesToProcess = uniqueArticles.slice(0, maxArticlesPerSync);
 
-  // 5. Processamento via Google Gemini AI
+  // 5. Processamento via Google Gemini AI com Fallback de Tradução
   let geminiProcessed = 0;
   let geminiErrors = 0;
   let tokensUsed = 0;
@@ -149,7 +141,7 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
   
   const geminiResults = await processBatchInParallel(
     articlesToProcess,
-    1, // Processa de 1 em 1 para garantir estabilidade de cota
+    1,
     async (article) => {
       try {
         await new Promise((res) => setTimeout(res, 300));
@@ -159,32 +151,41 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
           tokensUsed += analysis.tokensUsed || 0;
           return { article, analysis };
         } else {
+          console.warn(`[Gemini Warn] Análise retornou nulo para a matéria ${article.id}. Utilizando fallback local.`);
           geminiErrors++;
-          return null;
+          return { article, analysis: null };
         }
-      } catch (gemErr) {
+      } catch (gemErr: any) {
+        console.error(`[Gemini Error] Falha de execução na matéria ${article.id}:`, gemErr?.message || gemErr);
         geminiErrors++;
-        return null;
+        return { article, analysis: null };
       }
     }
   );
 
-  // Filtra falhas do Gemini
-  const validResults = geminiResults.filter(
-    (item): item is { article: NewsArticleInput; analysis: GeminiNewsAnalysis } => item !== null
-  );
-
-  console.log(`Gemini finalizado. Processadas: ${geminiProcessed} | Erros: ${geminiErrors}`);
   const translationTime = Date.now() - translationStartMs;
 
-  // 6. Gravar matérias traduzidas no Firestore "news"
+  // 6. Gravar matérias no Firestore "news"
   let totalAdded = 0;
 
-  if (validResults.length > 0) {
+  if (geminiResults.length > 0) {
     const batch = db.batch();
 
-    for (const { article, analysis } of validResults) {
-      const translationData = formatArticleTranslation(article, analysis);
+    for (const { article, analysis } of geminiResults) {
+      // Fallback local se o Gemini falhar
+      const translationData = analysis
+        ? formatArticleTranslation(article, analysis)
+        : {
+            titlePt: article.title,
+            summaryPt: article.summary || article.description || '',
+            contentPt: article.content || article.summary || '',
+            titleOriginal: article.title,
+            descriptionOriginal: article.summary || '',
+            contentOriginal: article.content || '',
+            translatedAt: new Date().toISOString(),
+            geminiVersion: 'fallback-offline'
+          };
+
       const finalCategory = normalizeCategory(analysis?.category, article.category);
       const keywords = processKeywords(analysis?.keywords, translationData.titlePt, article.source);
       const importance = typeof analysis?.importance === 'number' ? analysis.importance : 50;
