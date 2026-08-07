@@ -40,6 +40,7 @@ export function formatArticleTranslation(
     contentOriginal: article.content || article.summary,
     titlePt: article.title,
     summaryPt: article.summary,
+    contentPt: article.content || article.summary,
     translatedAt: now,
     geminiVersion: 'fallback-original',
     wasTranslatedByAi: false
