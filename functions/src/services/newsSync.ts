@@ -173,6 +173,7 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
 
     for (const { article, analysis } of geminiResults) {
       // Fallback local se o Gemini falhar
+      // Fallback local se o Gemini falhar
       const translationData = analysis
         ? formatArticleTranslation(article, analysis)
         : {
@@ -185,7 +186,6 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
             translatedAt: new Date().toISOString(),
             geminiVersion: 'fallback-offline'
           };
-
       const finalCategory = normalizeCategory(analysis?.category, article.category);
       const keywords = processKeywords(analysis?.keywords, translationData.titlePt, article.source);
       const importance = typeof analysis?.importance === 'number' ? analysis.importance : 50;
