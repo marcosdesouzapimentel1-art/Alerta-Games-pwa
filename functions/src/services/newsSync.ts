@@ -1,5 +1,5 @@
 import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../index'; // Instância configurada do Firestore no index.ts
+import { db } from '../lib/firebase';
 import { fetchRawgNews } from './rawg';
 import { fetchRssFeed, RSS_FEEDS } from './rss';
 import { deduplicateArticles, NewsArticleInput } from '../utils/deduplicate';
