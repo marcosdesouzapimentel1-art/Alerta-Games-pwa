@@ -4,8 +4,6 @@ import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 
-export { db };
-
 const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
 
