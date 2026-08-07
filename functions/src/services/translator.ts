@@ -7,6 +7,7 @@ export interface TranslatedArticleData {
   contentOriginal: string;
   titlePt: string;
   summaryPt: string;
+  contentPt: string;
   translatedAt: string;
   geminiVersion: string;
   wasTranslatedByAi: boolean;
