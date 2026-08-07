@@ -88,7 +88,7 @@ Conteúdo Original: ${article.content || article.summary}`;
       );
 
       const apiPromise = ai.models.generateContent({
-        model: 'Gemini 3.1 Pro Preview',
+        model: 'gemini-3.1-pro-preview',
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
