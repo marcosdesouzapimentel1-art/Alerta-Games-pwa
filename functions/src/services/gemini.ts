@@ -4,6 +4,7 @@ import { NewsArticleInput } from '../utils/deduplicate';
 export interface GeminiNewsAnalysis {
   title_pt: string;
   summary_pt: string;
+  content_pt: string;
   category: string;
   keywords: string[];
   importance: number;
