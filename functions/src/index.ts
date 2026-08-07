@@ -1,26 +1,16 @@
-import { initializeApp, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from './lib/firebase';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 
-// Inicialização segura usando a API modular do Firebase Admin App
-if (!getApps().length) {
-  initializeApp({
-    projectId: 'alerta-game'
-  });
-}
-
-export const db = getFirestore('(default)');
+export { db };
 
 const corsHandler = cors({ origin: true });
-
-// Região configurada para São Paulo
 const REGION = 'southamerica-east1';
 
 /**
- * Cloud Function Agendada v2: Executa a cada 10 minutos em São Paulo
+ * Cloud Function Agendada v2
  */
 export const scheduledNewsSync = onSchedule(
   {
@@ -33,20 +23,18 @@ export const scheduledNewsSync = onSchedule(
     secrets: ['GEMINI_API_KEY']
   },
   async (event) => {
-    console.log(`[Cloud Scheduler] Iniciando sincronização automática. Job: ${event.jobName || 'scheduledNewsSync'}`);
+    console.log(`[Cloud Scheduler] Iniciando sincronização automática.`);
     try {
       const result = await runNewsSync();
-      console.log(
-        `[Cloud Scheduler] Sincronização finalizada em ${result.durationMs}ms | Encontradas: ${result.totalFound} | Adicionadas: ${result.totalAdded} | Duplicadas: ${result.duplicatesCount}`
-      );
+      console.log(`[Cloud Scheduler] Sincronização concluída em ${result.durationMs}ms`);
     } catch (error: any) {
-      console.error(`[Cloud Scheduler] Erro ao sincronizar notícias: ${error.message}`);
+      console.error(`[Cloud Scheduler] Erro: ${error.message}`);
     }
   }
 );
 
 /**
- * Função HTTP: Sincronização manual acionada pelo Painel Administrativo
+ * Função HTTP Manual
  */
 export const syncNewsManual = onRequest(
   {
@@ -59,12 +47,12 @@ export const syncNewsManual = onRequest(
   (req, res) => {
     return corsHandler(req, res, async () => {
       if (req.method !== 'POST' && req.method !== 'GET') {
-        res.status(405).json({ success: false, message: 'Método não permitido. Utilize POST ou GET.' });
+        res.status(405).json({ success: false, message: 'Método não permitido.' });
         return;
       }
 
       try {
-        console.log('[HTTP Manual] Sincronização manual acionada via API...');
+        console.log('[HTTP Manual] Sincronização acionada...');
         const result = await runNewsSync();
         res.status(200).json({
           success: true,
@@ -72,15 +60,10 @@ export const syncNewsManual = onRequest(
           data: result
         });
       } catch (error: any) {
-        console.error("========== ERRO COMPLETO ==========");
-        console.error(error);
-        console.error("Mensagem:", error?.message);
-        console.error("Código:", error?.code);
-        console.error("Stack:", error?.stack);
-        console.error("===================================");
+        console.error("Erro na sincronização manual:", error);
         res.status(500).json({
           success: false,
-          message: 'Erro ao executar sincronização manual de notícias',
+          message: 'Erro ao executar sincronização manual',
           error: error.message
         });
       }
