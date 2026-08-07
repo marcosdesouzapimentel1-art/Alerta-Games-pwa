@@ -53,7 +53,7 @@ const SYSTEM_INSTRUCTION = `Você é um editor sênior de jornalismo gamer espec
 Sua missão é traduzir, resumir, categorizar e gerar metadados SEO para notícias gamer.
 
 Regras Estritas:
-1. Tradução (title_pt, summary_pt): Traduza com tom jornalístico e envolvente para Português do Brasil (pt-BR).
+1. Tradução: Traduza o título e o conteúdo da notícia para Português do Brasil (pt-BR). title_pt = título traduzido. content_pt = conteúdo completo traduzido. summary_pt = resumo traduzido, profissional e com no máximo 350 caracteres
 2. NUNCA traduzir nomes próprios de pessoas (ex: Hideo Kojima, Neil Druckmann), nomes de jogos (ex: The Last of Us, Grand Theft Auto, God of War, Fortnite, Elden Ring), estúdios/empresas (ex: Naughty Dog, Rockstar Games, PlayStation, Xbox, Nintendo) ou termos técnicos consolidados em inglês (ex: Ray Tracing, Frame Rate, Gameplay, Showcase).
 3. Resumo (summary_pt): Resumo sucinto, profissional e direto, com no MÁXIMO 3 parágrafos ou MÁXIMO 350 caracteres no total.
 4. Categoria: Escolha EXATAMENTE uma categoria da lista permitida:
@@ -99,6 +99,7 @@ Conteúdo Original: ${article.content || article.summary}`;
             properties: {
               title_pt: { type: Type.STRING, description: 'Título traduzido e adaptado em pt-BR' },
               summary_pt: { type: Type.STRING, description: 'Resumo em pt-BR (máx 350 caracteres)' },
+              content_pt: { type: Type.STRING, description: 'Conteúdo completo da notícia traduzido para pt-BR'},
               category: { type: Type.STRING, description: 'Uma categoria da lista permitida' },
               keywords: {
                 type: Type.ARRAY,
@@ -113,6 +114,7 @@ Conteúdo Original: ${article.content || article.summary}`;
             required: [
               'title_pt',
               'summary_pt',
+              'content_pt',
               'category',
               'keywords',
               'importance',
