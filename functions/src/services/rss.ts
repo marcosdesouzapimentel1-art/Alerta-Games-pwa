@@ -26,10 +26,11 @@ export interface RssFeedConfig {
   language: 'pt-BR' | 'en';
 }
 
+// ============================================================
+// FONTES INTERNACIONAIS - INGLÊS
+// ============================================================
+
 export const RSS_FEEDS: RssFeedConfig[] = [
-  // ============================================================
-  // FONTES INTERNACIONAIS - INGLÊS
-  // ============================================================
   {
     sourceName: 'IGN',
     url: 'https://feeds.feedburner.com/ign/news',
@@ -73,8 +74,9 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   },
 
   // ============================================================
-  // FONTES BRASILEIRAS - PORTUGUÊS DO BRASIL
+  // FONTES BRASILEIRAS - PORTUGUÊS
   // ============================================================
+
   {
     sourceName: 'Adrenaline',
     url: 'https://www.adrenaline.com.br/feed/',
@@ -111,11 +113,16 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   }
 ];
 
-/**
- * Extrai a primeira imagem encontrada dentro do conteúdo HTML.
- */
-function extractImageFromContent(content?: string): string | undefined {
-  if (!content) return undefined;
+// ============================================================
+// EXTRAÇÃO DE IMAGEM
+// ============================================================
+
+function extractImageFromContent(
+  content?: string
+): string | undefined {
+  if (!content) {
+    return undefined;
+  }
 
   const imgMatch = content.match(
     /<img[^>]+src=["']([^"']+)["']/i
@@ -124,27 +131,53 @@ function extractImageFromContent(content?: string): string | undefined {
   return imgMatch ? imgMatch[1] : undefined;
 }
 
-/**
- * Remove HTML e normaliza entidades comuns.
- */
+// ============================================================
+// LIMPEZA DE HTML
+// ============================================================
+
 function cleanHtml(html?: string): string {
-  if (!html) return '';
+  if (!html) {
+    return '';
+  }
 
   return html
-    .replace(/<[^>]*>/gm, ' ')
+    // Remove scripts
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+
+    // Remove styles
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+
+    // Remove todas as tags HTML
+    .replace(/<[^>]*>/g, ' ')
+
+    // Entidades HTML comuns
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
+
+    // Entidades numéricas
+    .replace(/&#(\d+);/g, (_, code) => {
+      try {
+        return String.fromCharCode(Number(code));
+      } catch {
+        return '';
+      }
+    })
+
+    // Remove espaços duplicados
     .replace(/\s+/g, ' ')
+
     .trim();
 }
 
-/**
- * Detecta a categoria com base no conteúdo da notícia.
- */
+// ============================================================
+// DETECÇÃO DE CATEGORIA
+// ============================================================
+
 function detectCategory(
   title: string,
   content: string,
@@ -152,16 +185,18 @@ function detectCategory(
 ): string {
   const text = `${title} ${content}`.toLowerCase();
 
+  // PlayStation
   if (
     text.includes('playstation') ||
     text.includes('ps5') ||
     text.includes('ps4') ||
     text.includes('ps3') ||
-    text.includes('ps plus')
+    text.includes('ps vr')
   ) {
     return 'PlayStation';
   }
 
+  // Xbox
   if (
     text.includes('xbox') ||
     text.includes('game pass') ||
@@ -171,6 +206,7 @@ function detectCategory(
     return 'Xbox';
   }
 
+  // Nintendo
   if (
     text.includes('nintendo') ||
     text.includes('switch') ||
@@ -179,60 +215,29 @@ function detectCategory(
     return 'Nintendo';
   }
 
+  // Steam
+  if (text.includes('steam')) {
+    return 'Steam';
+  }
+
+  // Epic Games
   if (
-    text.includes('steam') ||
     text.includes('epic games') ||
-    text.includes('pc gamer') ||
-    text.includes('pc gaming')
+    text.includes('epic games store')
   ) {
-    return 'PC';
+    return 'Epic Games';
   }
 
-  if (
-    text.includes('fortnite')
-  ) {
-    return 'Fortnite';
-  }
-
-  if (
-    text.includes('minecraft')
-  ) {
-    return 'Minecraft';
-  }
-
-  if (
-    text.includes('valorant')
-  ) {
-    return 'Valorant';
-  }
-
-  if (
-    text.includes('league of legends') ||
-    text.includes('lol')
-  ) {
-    return 'League of Legends';
-  }
-
-  if (
-    text.includes('call of duty')
-  ) {
-    return 'Call of Duty';
-  }
-
-  if (
-    text.includes('ea sports fc') ||
-    text.includes('fifa')
-  ) {
-    return 'EA Sports FC';
-  }
-
+  // GTA 6
   if (
     text.includes('gta 6') ||
+    text.includes('gta vi') ||
     text.includes('grand theft auto vi')
   ) {
     return 'GTA 6';
   }
 
+  // Rockstar
   if (
     text.includes('rockstar games') ||
     text.includes('rockstar')
@@ -240,68 +245,187 @@ function detectCategory(
     return 'Rockstar';
   }
 
-  if (
-    text.includes('promoção') ||
-    text.includes('promoções') ||
-    text.includes('oferta') ||
-    text.includes('ofertas') ||
-    text.includes('desconto') ||
-    text.includes('sale')
-  ) {
-    return 'Promoções';
+  // Fortnite
+  if (text.includes('fortnite')) {
+    return 'Fortnite';
   }
 
+  // Minecraft
+  if (text.includes('minecraft')) {
+    return 'Minecraft';
+  }
+
+  // Valorant
+  if (text.includes('valorant')) {
+    return 'Valorant';
+  }
+
+  // League of Legends
+  if (
+    text.includes('league of legends') ||
+    text.includes('lol')
+  ) {
+    return 'League of Legends';
+  }
+
+  // Call of Duty
+  if (
+    text.includes('call of duty') ||
+    text.includes('cod ')
+  ) {
+    return 'Call of Duty';
+  }
+
+  // EA Sports FC
+  if (
+    text.includes('ea sports fc') ||
+    text.includes('fc 25') ||
+    text.includes('fc 26')
+  ) {
+    return 'EA Sports FC';
+  }
+
+  // Hardware
   if (
     text.includes('rtx') ||
+    text.includes('radeon') ||
     text.includes('gpu') ||
     text.includes('cpu') ||
     text.includes('placa de vídeo') ||
+    text.includes('placa de video') ||
     text.includes('processador') ||
-    text.includes('hardware')
+    text.includes('ssd') ||
+    text.includes('memória ram') ||
+    text.includes('memoria ram')
   ) {
     return 'Hardware';
   }
 
+  // Tecnologia
   if (
     text.includes('tecnologia') ||
-    text.includes('ia ') ||
+    text.includes('artificial intelligence') ||
     text.includes('inteligência artificial') ||
-    text.includes('artificial intelligence')
+    text.includes('inteligencia artificial') ||
+    text.includes('ai ')
   ) {
     return 'Tecnologia';
+  }
+
+  // Promoções
+  if (
+    text.includes('promoção') ||
+    text.includes('promocao') ||
+    text.includes('oferta') ||
+    text.includes('desconto') ||
+    text.includes('sale') ||
+    text.includes('grátis') ||
+    text.includes('gratis')
+  ) {
+    return 'Promoções';
+  }
+
+  // PC
+  if (
+    text.includes(' pc ') ||
+    text.startsWith('pc ') ||
+    text.includes('pc gaming') ||
+    text.includes('windows')
+  ) {
+    return 'PC';
   }
 
   return defaultCategory;
 }
 
-/**
- * Converte a data do RSS para ISO.
- */
-function parsePublishedDate(item: any): string {
+// ============================================================
+// EXTRAÇÃO DE DATA
+// ============================================================
+
+function extractPublishedAt(item: any): string {
   try {
     if (item.isoDate) {
-      return new Date(item.isoDate).toISOString();
+      const date = new Date(item.isoDate);
+
+      if (!Number.isNaN(date.getTime())) {
+        return date.toISOString();
+      }
     }
 
     if (item.pubDate) {
-      return new Date(item.pubDate).toISOString();
+      const date = new Date(item.pubDate);
+
+      if (!Number.isNaN(date.getTime())) {
+        return date.toISOString();
+      }
     }
-  } catch {
-    // Ignora data inválida e usa a data atual.
+  } catch (error) {
+    console.warn(
+      '[RSS] Não foi possível interpretar a data:',
+      error
+    );
   }
 
   return new Date().toISOString();
 }
 
-/**
- * Busca e transforma um feed RSS em NewsArticleInput.
- */
+// ============================================================
+// EXTRAÇÃO DE IMAGEM
+// ============================================================
+
+function extractImage(item: any, rawContent: string): string {
+  const mediaContent = item.mediaContent;
+  const mediaThumbnail = item.mediaThumbnail;
+  const enclosure = item.enclosure;
+
+  // media:content
+  if (
+    mediaContent &&
+    mediaContent.$ &&
+    typeof mediaContent.$.url === 'string'
+  ) {
+    return mediaContent.$.url;
+  }
+
+  // media:thumbnail
+  if (
+    mediaThumbnail &&
+    mediaThumbnail.$ &&
+    typeof mediaThumbnail.$.url === 'string'
+  ) {
+    return mediaThumbnail.$.url;
+  }
+
+  // enclosure
+  if (
+    enclosure &&
+    typeof enclosure.url === 'string' &&
+    enclosure.url.trim()
+  ) {
+    return enclosure.url;
+  }
+
+  // Imagem dentro do HTML
+  const contentImage = extractImageFromContent(rawContent);
+
+  if (contentImage) {
+    return contentImage;
+  }
+
+  // Imagem padrão do Alerta Game
+  return 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800';
+}
+
+// ============================================================
+// BUSCAR RSS
+// ============================================================
+
 export async function fetchRssFeed(
   feedConfig: RssFeedConfig
 ): Promise<NewsArticleInput[]> {
   try {
     console.log(
-      `Consultando RSS: ${feedConfig.sourceName} [${feedConfig.language}]`
+      `[RSS] Buscando ${feedConfig.sourceName} (${feedConfig.language})...`
     );
 
     const feed = await parser.parseURL(feedConfig.url);
@@ -309,139 +433,147 @@ export async function fetchRssFeed(
     const articles: NewsArticleInput[] = [];
 
     for (const item of feed.items || []) {
-      if (!item.title || !item.link) {
-        continue;
+      try {
+        if (!item.title || !item.link) {
+          continue;
+        }
+
+        // ------------------------------------------------------
+        // TÍTULO
+        // ------------------------------------------------------
+
+        const title = cleanHtml(item.title);
+
+        if (!title) {
+          continue;
+        }
+
+        // ------------------------------------------------------
+        // CONTEÚDO ORIGINAL
+        // ------------------------------------------------------
+
+        const rawContent =
+          (item as any).contentEncoded ||
+          (item as any).content ||
+          (item as any).summary ||
+          (item as any).snippet ||
+          '';
+
+        const cleanedContent = cleanHtml(rawContent);
+
+        // ------------------------------------------------------
+        // RESUMO
+        // ------------------------------------------------------
+
+        let summary = cleanHtml(
+          item.summary ||
+          item.contentSnippet ||
+          cleanedContent ||
+          title
+        );
+
+        // Limita apenas o resumo de entrada.
+        // O conteúdo completo continua disponível para Gemini.
+        if (summary.length > 500) {
+          summary = `${summary.substring(0, 497)}...`;
+        }
+
+        // ------------------------------------------------------
+        // CONTEÚDO FINAL
+        // ------------------------------------------------------
+
+        const content =
+          cleanedContent ||
+          summary ||
+          title;
+
+        // ------------------------------------------------------
+        // IMAGEM
+        // ------------------------------------------------------
+
+        const imageUrl = extractImage(
+          item,
+          rawContent
+        );
+
+        // ------------------------------------------------------
+        // DATA
+        // ------------------------------------------------------
+
+        const publishedAt = extractPublishedAt(item);
+
+        // ------------------------------------------------------
+        // CATEGORIA
+        // ------------------------------------------------------
+
+        const category = detectCategory(
+          title,
+          summary,
+          feedConfig.category
+        );
+
+        // ------------------------------------------------------
+        // TEMPO DE LEITURA
+        // ------------------------------------------------------
+
+        const wordCount = content
+          .split(/\s+/)
+          .filter(Boolean)
+          .length;
+
+        const readTimeMinutes = Math.max(
+          2,
+          Math.ceil(wordCount / 200)
+        );
+
+        // ------------------------------------------------------
+        // ARTIGO
+        // ------------------------------------------------------
+
+        articles.push({
+          id: item.guid || item.id || item.link,
+
+          title,
+
+          summary: summary || title,
+
+          content: content || summary || title,
+
+          url: item.link.trim(),
+
+          imageUrl,
+
+          image: imageUrl,
+
+          source: feedConfig.sourceName,
+
+          category,
+
+          publishedAt,
+
+          readTimeMinutes,
+
+          // IMPORTANTE:
+          // Essa informação será usada pelo newsSync.ts
+          // para NÃO chamar Gemini nas fontes brasileiras.
+          language: feedConfig.language
+        });
+      } catch (itemError: any) {
+        console.error(
+          `[RSS] Erro ao processar item de ${feedConfig.sourceName}:`,
+          itemError?.message || itemError
+        );
       }
-
-      const title = cleanHtml(item.title);
-
-      const rawContent =
-        (item as any).contentEncoded ||
-        (item as any).content ||
-        (item as any).summary ||
-        (item as any).snippet ||
-        '';
-
-      const cleanedContent = cleanHtml(rawContent);
-
-      const rawSummary =
-        item.summary ||
-        item.contentSnippet ||
-        cleanedContent ||
-        title;
-
-      const summary = cleanHtml(rawSummary).slice(0, 500);
-
-      // ----------------------------------------------------------
-      // Imagem
-      // ----------------------------------------------------------
-
-      let imageUrl: string | undefined;
-
-      const mediaContent = (item as any).mediaContent;
-      const mediaThumbnail = (item as any).mediaThumbnail;
-      const enclosure = (item as any).enclosure;
-
-      if (
-        mediaContent &&
-        mediaContent.$ &&
-        mediaContent.$.url
-      ) {
-        imageUrl = mediaContent.$.url;
-      } else if (
-        mediaContent &&
-        mediaContent.url
-      ) {
-        imageUrl = mediaContent.url;
-      } else if (
-        mediaThumbnail &&
-        mediaThumbnail.$ &&
-        mediaThumbnail.$.url
-      ) {
-        imageUrl = mediaThumbnail.$.url;
-      } else if (
-        mediaThumbnail &&
-        mediaThumbnail.url
-      ) {
-        imageUrl = mediaThumbnail.url;
-      } else if (
-        enclosure &&
-        enclosure.url
-      ) {
-        imageUrl = enclosure.url;
-      } else {
-        imageUrl =
-          extractImageFromContent(rawContent) ||
-          'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800';
-      }
-
-      // ----------------------------------------------------------
-      // Categoria
-      // ----------------------------------------------------------
-
-      const category = detectCategory(
-        title,
-        cleanedContent || summary,
-        feedConfig.category
-      );
-
-      // ----------------------------------------------------------
-      // Data
-      // ----------------------------------------------------------
-
-      const publishedAt = parsePublishedDate(item);
-
-      // ----------------------------------------------------------
-      // Tempo estimado de leitura
-      // ----------------------------------------------------------
-
-      const wordCount = Math.max(
-        1,
-        cleanedContent.split(/\s+/).length
-      );
-
-      const readTimeMinutes = Math.max(
-        2,
-        Math.ceil(wordCount / 220)
-      );
-
-      // ----------------------------------------------------------
-      // ID
-      // ----------------------------------------------------------
-
-      const articleId =
-        (item.guid && String(item.guid).trim()) ||
-        `${feedConfig.sourceName}-${item.link}`;
-
-      articles.push({
-        id: articleId,
-        title,
-        summary: summary || title,
-        content: cleanedContent || summary || title,
-        url: item.link.trim(),
-        imageUrl,
-        image: imageUrl,
-        source: feedConfig.sourceName,
-        category,
-        publishedAt,
-        readTimeMinutes,
-
-        // IMPORTANTE:
-        // O NewsArticleInput precisará aceitar essa propriedade.
-        language: feedConfig.language
-      } as NewsArticleInput);
     }
 
     console.log(
-      `Fonte RSS carregada: ${feedConfig.sourceName} ` +
-      `(${articles.length} notícias | ${feedConfig.language})`
+      `[RSS] Fonte carregada: ${feedConfig.sourceName} | idioma=${feedConfig.language} | notícias=${articles.length}`
     );
 
     return articles;
   } catch (error: any) {
     console.error(
-      `Erro ao buscar RSS de ${feedConfig.sourceName} ` +
-      `(${feedConfig.url}):`,
+      `[RSS] Erro ao buscar ${feedConfig.sourceName}:`,
       error?.message || error
     );
 
