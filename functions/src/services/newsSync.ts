@@ -145,7 +145,7 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
     async (article) => {
       try {
         await new Promise((res) => setTimeout(res, 300));
-        const analysis = await processArticleWithGemini(article);
+        const analysis = article.language === 'pt-BR' ? null : await processArticleWithGemini(article);
         if (analysis) {
           geminiProcessed++;
           tokensUsed += analysis.tokensUsed || 0;
