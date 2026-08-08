@@ -531,7 +531,7 @@ export async function fetchRssFeed(
         // ------------------------------------------------------
 
         articles.push({
-          id: item.guid || item.id || item.link,
+          id: item.guid || item.link,
 
           title,
 
