@@ -28,7 +28,7 @@ export function formatArticleTranslation(
       summaryPt: analysis.summary_pt,
       contentPt: analysis.summary_pt,
       translatedAt: now,
-      geminiVersion: 'gemini-3.5-flash',
+      geminiVersion: 'gemini-2.5-flash',
       wasTranslatedByAi: true
     };
   }
