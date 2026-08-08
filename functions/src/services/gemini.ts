@@ -53,34 +53,35 @@ const SYSTEM_INSTRUCTION = `Você é um editor sênior de jornalismo gamer espec
 Sua missão é traduzir, resumir, categorizar e gerar metadados SEO para notícias gamer.
 
 Regras Estritas:
-1. Tradução: Traduza o título e o conteúdo da notícia para Português do Brasil (pt-BR). title_pt = título traduzido. content_pt = conteúdo completo traduzido. summary_pt = resumo traduzido, profissional e com no máximo 350 caracteres
-2. NUNCA traduzir nomes próprios de pessoas (ex: Hideo Kojima, Neil Druckmann), nomes de jogos (ex: The Last of Us, Grand Theft Auto, God of War, Fortnite, Elden Ring), estúdios/empresas (ex: Naughty Dog, Rockstar Games, PlayStation, Xbox, Nintendo) ou termos técnicos consolidados em inglês (ex: Ray Tracing, Frame Rate, Gameplay, Showcase).
-3. Resumo (summary_pt): Resumo sucinto, profissional e direto, com no MÁXIMO 3 parágrafos ou MÁXIMO 350 caracteres no total.
+1. Tradução: Traduza o título e o conteúdo da notícia para Português do Brasil (pt-BR). title_pt = título traduzido. content_pt = texto legível traduzido. summary_pt = resumo traduzido com no máximo 350 caracteres.
+2. NUNCA traduzir nomes próprios de pessoas, jogos (ex: The Last of Us, GTA), estúdios/empresas (ex: Rockstar, PlayStation, Xbox) ou termos técnicos consolidados (ex: Ray Tracing, Gameplay).
+3. Resumo (summary_pt): Sucinto, profissional e direto, com no MÁXIMO 350 caracteres no total.
 4. Categoria: Escolha EXATAMENTE uma categoria da lista permitida:
    [PlayStation, Xbox, Nintendo, Steam, Epic Games, PC, Game Pass, PS Plus, Fortnite, Minecraft, Valorant, League of Legends, Call of Duty, EA Sports FC, GTA 6, Rockstar, Promoções, Hardware, Tecnologia, Indie, Mobile, VR, Outros]
-5. Keywords: Gere entre 5 e 10 palavras-chave relevantes separadas sobre a notícia.
-6. Importância (importance): Um número de 0 a 100 baseado na relevância gamer (0=irrelevante, 100=anúncio histórico / lançamento AAA revolucionário).
-7. Notificação Push (shouldNotify): Defina como TRUE APENAS quando for um evento de altíssima relevância:
-   - Promoção imperdível / jogo grátis na Epic Games ou Steam Sale
-   - Anúncio relevante do Game Pass ou PS Plus
-   - Novo trailer/notícia do GTA 6 ou Rockstar
-   - Evento principal (Nintendo Direct, PlayStation Showcase, Xbox Showcase)
-   - Lançamento ou review de grande jogo AAA.
-   Caso contrário, defina como FALSE.
-8. SEO (seoTitle, seoDescription): Título chamativo para SEO gamer (até 60 caracteres) e meta descrição focada em cliques e engajamento (até 150 caracteres).`;
+5. Keywords: Gere entre 5 e 10 palavras-chave relevantes.
+6. Importância (importance): Um número de 0 a 100 baseado na relevância gamer.
+7. Notificação Push (shouldNotify): TRUE apenas para promoções imperdíveis, grandes anúncios AAA, eventos principais ou novidades relevantes de Game Pass/PS Plus.
+8. SEO (seoTitle, seoDescription): Título SEO gamer (até 60 caracteres) e meta descrição (até 150 caracteres).`;
 
 async function callGeminiWithRetry(
   ai: GoogleGenAI,
   article: NewsArticleInput,
   retries = 3
 ): Promise<GeminiNewsAnalysis | null> {
+  // OTMIZAÇÃO RIGOROSA DE INPUT TOKENS:
+  // Limita o texto enviado a no máximo 1200 caracteres (~250-300 tokens de entrada)
+  const MAX_INPUT_CHARS = 1200;
+  const rawContent = article.content || article.summary || '';
+  const truncatedContent = rawContent.length > MAX_INPUT_CHARS
+    ? rawContent.substring(0, MAX_INPUT_CHARS) + '...'
+    : rawContent;
+
   const prompt = `Analise a seguinte notícia gamer:
 Fonte: ${article.source}
 URL: ${article.url}
 Categoria Original: ${article.category}
 Título Original: ${article.title}
-Descrição Original: ${article.summary}
-Conteúdo Original: ${article.content || article.summary}`;
+Descrição/Conteúdo: ${truncatedContent}`;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -89,7 +90,7 @@ Conteúdo Original: ${article.content || article.summary}`;
       );
 
       const apiPromise = ai.models.generateContent({
-        model: 'gemini-2.5-flash', // ID estável e otimizado no SDK @google/genai
+        model: 'gemini-2.0-flash', // Usando o modelo rápido, estável e ultra barato
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
@@ -99,7 +100,7 @@ Conteúdo Original: ${article.content || article.summary}`;
             properties: {
               title_pt: { type: Type.STRING, description: 'Título traduzido e adaptado em pt-BR' },
               summary_pt: { type: Type.STRING, description: 'Resumo em pt-BR (máx 350 caracteres)' },
-              content_pt: { type: Type.STRING, description: 'Conteúdo completo da notícia traduzido para pt-BR'},
+              content_pt: { type: Type.STRING, description: 'Conteúdo resumido/traduzido em pt-BR' },
               category: { type: Type.STRING, description: 'Uma categoria da lista permitida' },
               keywords: {
                 type: Type.ARRAY,
@@ -146,7 +147,7 @@ Conteúdo Original: ${article.content || article.summary}`;
       if (attempt === retries) {
         return null;
       }
-      // Backoff exponencial para respeitar a cota de requisições por minuto (RPM)
+      // Backoff exponencial para evitar estouro de limite de requisições por minuto (RPM)
       await new Promise((res) => setTimeout(res, 2000 * attempt));
     }
   }
