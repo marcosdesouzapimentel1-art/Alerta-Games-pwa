@@ -131,34 +131,53 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
   const articlesToProcess = uniqueArticles.slice(0, maxArticlesPerSync);
 
-  // 5. Processamento via Google Gemini AI com Fallback de Tradução
+  // 5. Processamento via Google Gemini AI com Otimização de Input Tokens e Suporte Nativo a pt-BR
   let geminiProcessed = 0;
   let geminiErrors = 0;
   let tokensUsed = 0;
   const translationStartMs = Date.now();
 
   console.log(`Iniciando Gemini para lote de ${articlesToProcess.length} notícias (total pendentes: ${uniqueArticles.length})...`);
-  
+
   const geminiResults = await processBatchInParallel(
     articlesToProcess,
     1,
     async (article) => {
+      // Se a fonte já for pt-BR, ignora chamada ao Gemini para economizar 100% dos tokens
+      if (article.language === 'pt-BR') {
+        return { article, analysis: null, isNativePt: true };
+      }
+
       try {
         await new Promise((res) => setTimeout(res, 300));
-        const analysis = article.language === 'pt-BR' ? null : await processArticleWithGemini(article);
+
+        // OTMIZAÇÃO: Trunca o texto enviado para no máximo 1200 caracteres (~250 tokens de entrada)
+        const MAX_INPUT_CHARS = 1200;
+        const rawContent = article.content || article.summary || '';
+        const truncatedContent = rawContent.length > MAX_INPUT_CHARS
+          ? rawContent.substring(0, MAX_INPUT_CHARS) + '...'
+          : rawContent;
+
+        const truncatedArticle: NewsArticleInput = {
+          ...article,
+          content: truncatedContent
+        };
+
+        const analysis = await processArticleWithGemini(truncatedArticle);
+
         if (analysis) {
           geminiProcessed++;
           tokensUsed += analysis.tokensUsed || 0;
-          return { article, analysis };
+          return { article, analysis, isNativePt: false };
         } else {
           console.warn(`[Gemini Warn] Análise retornou nulo para a matéria ${article.id}. Utilizando fallback local.`);
           geminiErrors++;
-          return { article, analysis: null };
+          return { article, analysis: null, isNativePt: false };
         }
       } catch (gemErr: any) {
         console.error(`[Gemini Error] Falha de execução na matéria ${article.id}:`, gemErr?.message || gemErr);
         geminiErrors++;
-        return { article, analysis: null };
+        return { article, analysis: null, isNativePt: false };
       }
     }
   );
@@ -171,21 +190,38 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
   if (geminiResults.length > 0) {
     const batch = db.batch();
 
-    for (const { article, analysis } of geminiResults) {
-      // Fallback local se o Gemini falhar
-      // Fallback local se o Gemini falhar
-      const translationData = analysis
-        ? formatArticleTranslation(article, analysis)
-        : {
-            titlePt: article.title,
-            summaryPt: article.summary || article.content || '',
-            contentPt: article.content || article.summary || '',
-            titleOriginal: article.title,
-            descriptionOriginal: article.summary || '',
-            contentOriginal: article.content || '',
-            translatedAt: new Date().toISOString(),
-            geminiVersion: 'fallback-offline'
-          };
+    for (const { article, analysis, isNativePt } of geminiResults) {
+      let translationData;
+
+      if (isNativePt) {
+        // Matéria nativa BR: sem custo de IA
+        translationData = {
+          titlePt: article.title,
+          summaryPt: article.summary || article.content || '',
+          contentPt: article.content || article.summary || '',
+          titleOriginal: article.title,
+          descriptionOriginal: article.summary || '',
+          contentOriginal: article.content || '',
+          translatedAt: new Date().toISOString(),
+          geminiVersion: 'native-pt-br'
+        };
+      } else if (analysis) {
+        // Matéria traduzida e resumida pelo Gemini
+        translationData = formatArticleTranslation(article, analysis);
+      } else {
+        // Fallback local em caso de erro na API
+        translationData = {
+          titlePt: article.title,
+          summaryPt: article.summary || article.content || '',
+          contentPt: article.content || article.summary || '',
+          titleOriginal: article.title,
+          descriptionOriginal: article.summary || '',
+          contentOriginal: article.content || '',
+          translatedAt: new Date().toISOString(),
+          geminiVersion: 'fallback-offline'
+        };
+      }
+
       const finalCategory = normalizeCategory(analysis?.category, article.category);
       const keywords = processKeywords(analysis?.keywords, translationData.titlePt, article.source);
       const importance = typeof analysis?.importance === 'number' ? analysis.importance : 50;
