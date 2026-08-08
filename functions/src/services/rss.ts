@@ -26,56 +26,40 @@ export interface RssFeedConfig {
   language: 'pt-BR' | 'en';
 }
 
-/**
- * Fontes RSS do Alerta Game.
- *
- * language:
- * - pt-BR = conteúdo já publicado em português
- * - en    = conteúdo originalmente em inglês
- *
- * Essa informação será utilizada pelo newsSync.ts
- * para evitar chamadas desnecessárias ao Gemini.
- */
 export const RSS_FEEDS: RssFeedConfig[] = [
   // ============================================================
   // FONTES INTERNACIONAIS - INGLÊS
   // ============================================================
-
   {
     sourceName: 'IGN',
     url: 'https://feeds.feedburner.com/ign/news',
     category: 'Geral',
     language: 'en'
   },
-
   {
     sourceName: 'GameSpot',
     url: 'https://www.gamespot.com/feeds/news/',
     category: 'Geral',
     language: 'en'
   },
-
   {
     sourceName: 'VGC',
     url: 'https://www.videogameschronicle.com/feed/',
     category: 'Geral',
     language: 'en'
   },
-
   {
     sourceName: 'PlayStation Blog',
     url: 'https://blog.playstation.com/feed/',
     category: 'PlayStation',
     language: 'en'
   },
-
   {
     sourceName: 'Xbox Wire',
     url: 'https://news.xbox.com/en-us/feed/',
     category: 'Xbox',
     language: 'en'
   },
-
   {
     sourceName: 'Nintendo Life',
     url: 'https://www.nintendolife.com/feeds/latest',
@@ -86,35 +70,30 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   // ============================================================
   // FONTES BRASILEIRAS - PORTUGUÊS
   // ============================================================
-
   {
     sourceName: 'Adrenaline',
     url: 'https://www.adrenaline.com.br/feed/',
     category: 'Geral',
     language: 'pt-BR'
   },
-
   {
     sourceName: 'Nintendo Blast',
     url: 'https://www.nintendoblast.com.br/feeds/posts/default?alt=rss',
     category: 'Nintendo',
     language: 'pt-BR'
   },
-
   {
     sourceName: 'PSX Brasil',
     url: 'https://psxbrasil.com.br/feed/',
     category: 'PlayStation',
     language: 'pt-BR'
   },
-
   {
     sourceName: 'MeuPlayStation',
     url: 'https://meups.com.br/feed/',
     category: 'PlayStation',
     language: 'pt-BR'
   },
-
   {
     sourceName: 'Xbox Power',
     url: 'https://www.xboxpower.com.br/feed/',
