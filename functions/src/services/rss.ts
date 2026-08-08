@@ -1,4 +1,3 @@
-```ts
 import Parser from 'rss-parser';
 import { NewsArticleInput } from '../utils/deduplicate';
 
