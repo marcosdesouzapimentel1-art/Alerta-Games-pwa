@@ -89,7 +89,7 @@ Conteúdo Original: ${article.content || article.summary}`;
       );
 
       const apiPromise = ai.models.generateContent({
-        model: 'gemini-3.5-flash', // ID estável e otimizado no SDK @google/genai
+        model: 'gemini-2.5-flash', // ID estável e otimizado no SDK @google/genai
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
