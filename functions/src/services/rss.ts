@@ -22,39 +22,46 @@ export interface RssFeedConfig {
   sourceName: string;
   url: string;
   category: string;
+  language: 'pt-BR' | 'en';
 }
 
 export const RSS_FEEDS: RssFeedConfig[] = [
   {
-    sourceName: 'IGN',
-    url: 'https://feeds.feedburner.com/ign/news',
-    category: 'Geral'
-  },
-  {
-    sourceName: 'GameSpot',
-    url: 'https://www.gamespot.com/feeds/news/',
-    category: 'Geral'
-  },
-  {
-    sourceName: 'VGC',
-    url: 'https://www.videogameschronicle.com/feed/',
-    category: 'Geral'
-  },
-  {
-    sourceName: 'PlayStation Blog',
-    url: 'https://blog.playstation.com/feed/',
-    category: 'PlayStation'
-  },
-  {
-    sourceName: 'Xbox Wire',
-    url: 'https://news.xbox.com/en-us/feed/',
-    category: 'Xbox'
-  },
-  {
-    sourceName: 'Nintendo Life',
-    url: 'https://www.nintendolife.com/feeds/latest',
-    category: 'Nintendo'
-  }
+     sourceName: 'IGN',
+  url: 'https://feeds.feedburner.com/ign/news',
+  category: 'Geral',
+  language: 'en'
+},
+{
+  sourceName: 'GameSpot',
+  url: 'https://www.gamespot.com/feeds/news/',
+  category: 'Geral',
+  language: 'en'
+},
+{
+  sourceName: 'VGC',
+  url: 'https://www.videogameschronicle.com/feed/',
+  category: 'Geral',
+  language: 'en'
+},
+{
+  sourceName: 'PlayStation Blog',
+  url: 'https://blog.playstation.com/feed/',
+  category: 'PlayStation',
+  language: 'en'
+},
+{
+  sourceName: 'Xbox Wire',
+  url: 'https://news.xbox.com/en-us/feed/',
+  category: 'Xbox',
+  language: 'en'
+},
+{
+  sourceName: 'Nintendo Life',
+  url: 'https://www.nintendolife.com/feeds/latest',
+  category: 'Nintendo',
+  language: 'en'
+}
 ];
 
 function extractImageFromContent(content?: string): string | undefined {
@@ -125,7 +132,8 @@ export async function fetchRssFeed(feedConfig: RssFeedConfig): Promise<NewsArtic
         source: feedConfig.sourceName,
         category,
         publishedAt,
-        readTimeMinutes
+        readTimeMinutes,
+        language: feedConfig.language
       });
     }
 
