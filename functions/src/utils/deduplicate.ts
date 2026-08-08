@@ -10,6 +10,8 @@ export interface NewsArticleInput {
   category: string;
   publishedAt: string;
   readTimeMinutes?: number;
+
+  language?: 'pt-BR' | 'en';
 }
 
 export function normalizeTitle(title: string): string {
