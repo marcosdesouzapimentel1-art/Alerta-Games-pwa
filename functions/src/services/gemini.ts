@@ -90,7 +90,7 @@ Descrição/Conteúdo: ${truncatedContent}`;
       );
 
       const apiPromise = ai.models.generateContent({
-        model: 'gemini-2.0-flash', // Usando o modelo rápido, estável e ultra barato
+        model: 'gemini-3.6-flash', // Usando o modelo rápido, estável e ultra barato
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
