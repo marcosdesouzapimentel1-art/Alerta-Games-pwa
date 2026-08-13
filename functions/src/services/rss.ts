@@ -31,50 +31,8 @@ export interface RssFeedConfig {
 // ============================================================
 
 export const RSS_FEEDS: RssFeedConfig[] = [
-  {
-    sourceName: 'IGN',
-    url: 'https://feeds.feedburner.com/ign/news',
-    category: 'Geral',
-    language: 'en'
-  },
-
-  {
-    sourceName: 'GameSpot',
-    url: 'https://www.gamespot.com/feeds/news/',
-    category: 'Geral',
-    language: 'en'
-  },
-
-  {
-    sourceName: 'VGC',
-    url: 'https://www.videogameschronicle.com/feed/',
-    category: 'Geral',
-    language: 'en'
-  },
-
-  {
-    sourceName: 'PlayStation Blog',
-    url: 'https://blog.playstation.com/feed/',
-    category: 'PlayStation',
-    language: 'en'
-  },
-
-  {
-    sourceName: 'Xbox Wire',
-    url: 'https://news.xbox.com/en-us/feed/',
-    category: 'Xbox',
-    language: 'en'
-  },
-
-  {
-    sourceName: 'Nintendo Life',
-    url: 'https://www.nintendolife.com/feeds/latest',
-    category: 'Nintendo',
-    language: 'en'
-  },
-
   // ============================================================
-  // FONTES BRASILEIRAS - PORTUGUÊS
+  // FONTES BRASILEIRAS (PORTUGUÊS PT-BR) - CUSTO R$ 0,00 EM IA
   // ============================================================
 
   {
@@ -85,16 +43,9 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   },
 
   {
-    sourceName: 'Nintendo Blast',
-    url: 'https://www.nintendoblast.com.br/feeds/posts/default?alt=rss',
-    category: 'Nintendo',
-    language: 'pt-BR'
-  },
-
-  {
-    sourceName: 'PSX Brasil',
-    url: 'https://psxbrasil.com.br/feed/',
-    category: 'PlayStation',
+    sourceName: 'Voxel',
+    url: 'https://rss.tecmundo.com.br/feed',
+    category: 'Geral',
     language: 'pt-BR'
   },
 
@@ -106,9 +57,37 @@ export const RSS_FEEDS: RssFeedConfig[] = [
   },
 
   {
+    sourceName: 'PSX Brasil',
+    url: 'https://psxbrasil.com.br/feed/',
+    category: 'PlayStation',
+    language: 'pt-BR'
+  },
+
+  {
     sourceName: 'Xbox Power',
     url: 'https://www.xboxpower.com.br/feed/',
     category: 'Xbox',
+    language: 'pt-BR'
+  },
+
+  {
+    sourceName: 'Nintendo Blast',
+    url: 'https://www.nintendoblast.com.br/feeds/posts/default?alt=rss',
+    category: 'Nintendo',
+    language: 'pt-BR'
+  },
+
+  {
+    sourceName: 'Flow Games',
+    url: 'https://flowgames.gg/feed/',
+    category: 'Geral',
+    language: 'pt-BR'
+  },
+
+  {
+    sourceName: 'IGN Brasil',
+    url: 'https://br.ign.com/feed.xml',
+    category: 'Geral',
     language: 'pt-BR'
   }
 ];
