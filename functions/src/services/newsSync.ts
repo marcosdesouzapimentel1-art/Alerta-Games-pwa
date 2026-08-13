@@ -56,7 +56,7 @@ async function processBatchInParallel<T, R>(
   return results;
 }
 
-export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsSyncResult> {
+export async function runNewsSync(maxArticlesPerSync: number = 20): Promise<NewsSyncResult> {
   const startedAt = new Date().toISOString();
   const startTimeMs = Date.now();
 
