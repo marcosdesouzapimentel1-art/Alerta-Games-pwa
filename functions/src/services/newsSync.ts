@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebase';
-import { fetchRawgNews } from './rawg';
+
+// Desativado: import { fetchRawgNews } from './rawg';
 import { fetchRssFeed, RSS_FEEDS } from './rss';
 import { deduplicateArticles, NewsArticleInput } from '../utils/deduplicate';
 import { processArticleWithGemini, GeminiNewsAnalysis } from './gemini';
@@ -63,7 +64,8 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
   const errors: Array<{ source: string; message: string }> = [];
   const sourcesQueried: SourceQueryResult[] = [];
 
-  // 1. RAWG API
+  // 1. RAWG API (Desativado para manter foco 100% em fontes brasileiras PT-BR)
+  /*
   try {
     const rawgArticles = await fetchRawgNews();
     fetchedArticles.push(...rawgArticles);
@@ -82,8 +84,9 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
       error: errMsg
     });
   }
+  */
 
-  // 2. RSS Feeds
+  // 2. Consultar RSS Feeds exclusivamente nacionais
   for (const feed of RSS_FEEDS) {
     try {
       const articles = await fetchRssFeed(feed);
@@ -131,19 +134,19 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
   const { uniqueArticles, duplicatesCount } = deduplicateArticles(fetchedArticles, existingItems);
   const articlesToProcess = uniqueArticles.slice(0, maxArticlesPerSync);
 
-  // 5. Processamento via Google Gemini AI com Otimização de Input Tokens e Suporte Nativo a pt-BR
+  // 5. Processamento (Notícias pt-BR pulam o Gemini e gastam 0 tokens)
   let geminiProcessed = 0;
   let geminiErrors = 0;
   let tokensUsed = 0;
   const translationStartMs = Date.now();
 
-  console.log(`Iniciando Gemini para lote de ${articlesToProcess.length} notícias (total pendentes: ${uniqueArticles.length})...`);
+  console.log(`Iniciando processamento para lote de ${articlesToProcess.length} notícias (total pendentes: ${uniqueArticles.length})...`);
 
   const geminiResults = await processBatchInParallel(
     articlesToProcess,
     1,
     async (article) => {
-      // Se a fonte já for pt-BR, ignora chamada ao Gemini para economizar 100% dos tokens
+      // Se a fonte for pt-BR, ignora chamada ao Gemini (Custo R$ 0,00)
       if (article.language === 'pt-BR') {
         return { article, analysis: null, isNativePt: true };
       }
@@ -151,7 +154,6 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
       try {
         await new Promise((res) => setTimeout(res, 300));
 
-        // OTMIZAÇÃO: Trunca o texto enviado para no máximo 1200 caracteres (~250 tokens de entrada)
         const MAX_INPUT_CHARS = 1200;
         const rawContent = article.content || article.summary || '';
         const truncatedContent = rawContent.length > MAX_INPUT_CHARS
@@ -194,7 +196,7 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
       let translationData;
 
       if (isNativePt) {
-        // Matéria nativa BR: sem custo de IA
+        // Matéria nativa BR: Formatação direta sem gasto de cota/tokens
         translationData = {
           titlePt: article.title,
           summaryPt: article.summary || article.content || '',
@@ -206,10 +208,8 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
           geminiVersion: 'native-pt-br'
         };
       } else if (analysis) {
-        // Matéria traduzida e resumida pelo Gemini
         translationData = formatArticleTranslation(article, analysis);
       } else {
-        // Fallback local em caso de erro na API
         translationData = {
           titlePt: article.title,
           summaryPt: article.summary || article.content || '',
@@ -319,7 +319,6 @@ export async function runNewsSync(maxArticlesPerSync: number = 5): Promise<NewsS
     status
   };
 
-  // 7. Salvar log de execução no Firestore
   try {
     await db.collection("news_sync_logs").add({
       ...result,
