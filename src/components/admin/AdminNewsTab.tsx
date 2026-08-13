@@ -9,7 +9,6 @@ import {
 import {
   getNewsFromFirestore,
   NEWS_CATEGORIES,
-  triggerCloudFunctionNewsSync,
   getLatestNewsSyncLogFromFirestore,
   SyncLog,
 } from '../../services/newsService';
@@ -24,7 +23,6 @@ import {
   AlertCircle,
   Bell,
   X,
-  ExternalLink,
   RefreshCw,
   Radio,
   Layers,
@@ -104,50 +102,54 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
   const handleSyncNewsNow = async () => {
     if (syncing) return;
     setSyncing(true);
-    setSyncProgress(10);
-    setSyncStatusMessage('Conectando à Cloud Function syncNewsManual...');
+    setSyncProgress(15);
+    setSyncStatusMessage('Conectando à Cloud Function v2 oficial...');
     setFeedback(null);
 
-    // Progress bar timer animation while waiting for HTTP Cloud Function response
     const progressInterval = setInterval(() => {
       setSyncProgress((prev) => {
-        if (prev < 35) {
-          setSyncStatusMessage('Cloud Function v2: Consultando RSS Feeds e RAWG API...');
-          return prev + 10;
-        } else if (prev < 75) {
-          setSyncStatusMessage('Cloud Function v2: Filtrando e executando deduplicação...');
+        if (prev < 40) {
+          setSyncStatusMessage('Consultando RSS Feeds dos Portais Brasileiros (pt-BR)...');
+          return prev + 12;
+        } else if (prev < 80) {
+          setSyncStatusMessage('Processando notícias e efetuando deduplicação...');
           return prev + 8;
-        } else if (prev < 90) {
-          setSyncStatusMessage('Cloud Function v2: Gravando notícias na coleção news e logs...');
+        } else if (prev < 95) {
+          setSyncStatusMessage('Gravando lote de notícias na coleção news do Firestore...');
           return prev + 3;
         }
         return prev;
       });
-    }, 450);
+    }, 300);
 
     try {
-      const { syncedCount, log } = await triggerCloudFunctionNewsSync();
+      // Requisição direta para a URL atualizada da Cloud Function
+      const response = await fetch('https://syncnewsmanual-j3zyulq6mq-rj.a.run.app');
+      const json = await response.json();
 
       clearInterval(progressInterval);
       setSyncProgress(100);
-      setSyncStatusMessage('Sincronização Cloud Function concluída!');
 
-      setLatestSyncLog(log);
-      await loadArticles();
-      await loadLatestSyncLog();
-      onRefreshStats();
+      if (json.success && json.data) {
+        setSyncStatusMessage('Sincronização concluída com sucesso!');
+        await loadArticles();
+        await loadLatestSyncLog();
+        onRefreshStats();
 
-      setFeedback({
-        type: 'success',
-        message: `Sincronização via Cloud Function executada com sucesso! Fontes consultadas: ${log.sourcesAttempted}, Encontradas: ${log.articlesFound ?? 0}, Novas salvas: ${syncedCount}, Duplicadas ignoradas: ${log.duplicatesCount ?? 0}, Erros: ${log.errorsCount ?? 0}.`,
-      });
+        setFeedback({
+          type: 'success',
+          message: `Sincronização concluída! ${json.data.totalFound} notícias consultadas, ${json.data.totalAdded} novas matérias adicionadas das fontes nacionais.`,
+        });
+      } else {
+        throw new Error(json.message || 'Erro ao sincronizar notícias.');
+      }
     } catch (err: any) {
       clearInterval(progressInterval);
       setSyncProgress(0);
       setSyncStatusMessage('');
       setFeedback({
         type: 'error',
-        message: err?.message || 'Erro ao comunicar com a Cloud Function syncNewsManual.',
+        message: err?.message || 'Erro de comunicação com a Cloud Function.',
       });
     } finally {
       setTimeout(() => {
@@ -205,7 +207,6 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
 
     try {
       if (editingArticle) {
-        // Edit existing
         await updateNewsAdmin(
           editingArticle.id,
           {
@@ -224,8 +225,7 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
         );
         setFeedback({ type: 'success', message: 'Notícia atualizada com sucesso!' });
       } else {
-        // Create new
-        const newId = await createNewsAdmin(
+        await createNewsAdmin(
           {
             title,
             summary,
@@ -342,14 +342,14 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-bold text-slate-100 font-heading">
-                  Agregador & Sincronizador Automático de Notícias
+                  Agregador & Sincronizador de Notícias Nacionais
                 </h4>
                 <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-bold">
-                  7 Adapters RSS / API
+                  8 Adapters RSS (pt-BR)
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Obtém notícias de RAWG, IGN, GameSpot, VGC, Xbox, PlayStation e Nintendo com deduplicação no Firestore.
+                Obtém notícias em português de Adrenaline, Voxel, MeuPlayStation, PSX Brasil, Xbox Power, Nintendo Blast, Flow Games e IGN Brasil.
               </p>
             </div>
           </div>
@@ -368,13 +368,13 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
           </button>
         </div>
 
-        {/* Cloud Function Sync Progress Bar */}
+        {/* Sync Progress Bar */}
         {(syncing || syncProgress > 0) && (
           <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 space-y-2 animate-fadeIn">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 font-bold text-cyan-400">
                 <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
-                <span>{syncStatusMessage || 'Processando sincronização via Cloud Function v2...'}</span>
+                <span>{syncStatusMessage || 'Sincronizando com as fontes brasileiras...'}</span>
               </div>
               <span className="font-mono text-cyan-300 font-bold">{syncProgress}%</span>
             </div>
@@ -387,96 +387,20 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
           </div>
         )}
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-              <Clock className="w-3 h-3 text-cyan-400" />
-              <span>Última Sync</span>
-            </div>
-            <p className="text-xs font-bold text-slate-200 truncate">
-              {latestSyncLog?.timestamp
-                ? new Date(latestSyncLog.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                : 'Pendente'}
-            </p>
-            <span className="text-[10px] text-slate-500 block truncate">
-              {latestSyncLog?.timestamp
-                ? new Date(latestSyncLog.timestamp).toLocaleDateString('pt-BR')
-                : 'Sem registro'}
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-              <Layers className="w-3 h-3 text-blue-400" />
-              <span>Fontes / Encontradas</span>
-            </div>
-            <p className="text-base font-black text-slate-100 font-heading">
-              {latestSyncLog?.articlesFound ?? 0}
-            </p>
-            <span className="text-[10px] text-slate-400 block truncate">
-              {latestSyncLog?.sourcesAttempted ?? 7} fontes consultadas
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/20 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
-              <FileCheck className="w-3 h-3 text-emerald-400" />
-              <span>Novas Salvas</span>
-            </div>
-            <p className="text-base font-black text-emerald-300 font-heading">
-              +{latestSyncLog?.newArticlesCount ?? 0}
-            </p>
-            <span className="text-[10px] text-emerald-400/80 block truncate">
-              Coleção news
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/20 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-medium">
-              <CheckCircle className="w-3 h-3 text-amber-400" />
-              <span>Duplicadas</span>
-            </div>
-            <p className="text-base font-black text-amber-300 font-heading">
-              {latestSyncLog?.duplicatesCount ?? 0}
-            </p>
-            <span className="text-[10px] text-amber-400/80 block truncate">
-              Ignoradas
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/20 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-rose-400 font-medium">
-              <AlertTriangle className="w-3 h-3 text-rose-400" />
-              <span>Falhas / Erros</span>
-            </div>
-            <p className="text-base font-black text-rose-300 font-heading">
-              {latestSyncLog?.errorsCount ?? 0}
-            </p>
-            <span className="text-[10px] text-rose-400/80 block truncate">
-              Fontes com erro
-            </span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-1">
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-              <User className="w-3 h-3 text-cyan-400" />
-              <span>Executado Por</span>
-            </div>
-            <p className="text-xs font-bold text-slate-200 truncate" title={latestSyncLog?.adminEmail || adminUser.email || 'Admin'}>
-              {latestSyncLog?.adminEmail || adminUser.email || 'Admin'}
-            </p>
-            <span className="text-[10px] text-slate-500 block truncate">
-              Role: admin
-            </span>
-          </div>
-        </div>
-
-        {/* Integrated Adapters Badges */}
+        {/* Integrated Adapters Badges (Fontes Brasileiras) */}
         <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] text-slate-400">
-          <span className="font-semibold text-slate-500 mr-1">Adapters Ativos:</span>
-          {['RAWG', 'IGN', 'GameSpot', 'VGC', 'Xbox Wire', 'PlayStation Blog', 'Nintendo News'].map((source) => (
-            <span key={source} className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60">
+          <span className="font-semibold text-slate-500 mr-1">Adapters Ativos (pt-BR):</span>
+          {[
+            'Adrenaline',
+            'Voxel',
+            'MeuPlayStation',
+            'PSX Brasil',
+            'Xbox Power',
+            'Nintendo Blast',
+            'Flow Games',
+            'IGN Brasil',
+          ].map((source) => (
+            <span key={source} className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700/60 font-mono text-[10px]">
               {source}
             </span>
           ))}
@@ -532,14 +456,14 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
         </select>
       </div>
 
-      {/* News List Table / Cards */}
+      {/* News List */}
       {loading ? (
         <div className="p-8 text-center text-xs text-slate-400 bg-slate-900/50 rounded-2xl border border-slate-800">
           Carregando notícias do Firestore...
         </div>
       ) : filteredArticles.length === 0 ? (
         <div className="p-8 text-center text-xs text-slate-400 bg-slate-900/50 rounded-2xl border border-slate-800">
-          Nenhuma notícia encontrada com os filtros selecionados.
+          Nenhuma notícia encontrada na coleção. Clique em "Sincronizar Notícias Agora" acima para carregar as matérias mais recentes das fontes brasileiras.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3">
@@ -561,15 +485,15 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                     <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 text-[10px] font-bold">
                       {article.category}
                     </span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 text-[10px] font-mono">
+                      {typeof article.source === 'string' ? article.source : 'Fonte BR'}
+                    </span>
                     {article.featured && (
                       <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-bold flex items-center gap-1">
                         <Sparkles className="w-3 h-3 fill-current" />
-                        Destaque Principal
+                        Destaque
                       </span>
                     )}
-                    <span className="text-[10px] font-mono text-slate-500">
-                      {new Date(article.publishedAt).toLocaleDateString('pt-BR')}
-                    </span>
                   </div>
 
                   <h4 className="text-xs font-bold text-slate-100 truncate">{article.title}</h4>
@@ -630,7 +554,6 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
             </div>
 
             <form onSubmit={handleSave} className="space-y-4">
-              {/* Title */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 mb-1">
                   Título da Notícia *
@@ -638,14 +561,13 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Novo anúncio oficial de GTA 6 surpreende a comunidade"
+                  placeholder="Ex: Novo anúncio oficial sobre games no Brasil"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
-              {/* Summary */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 mb-1">
                   Resumo Curto *
@@ -653,28 +575,26 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                 <textarea
                   rows={2}
                   required
-                  placeholder="Pequeno resumo exibido nos cards e push notifications..."
+                  placeholder="Resumo exibido no aplicativo..."
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
-              {/* Content */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-300 mb-1">
                   Conteúdo Completo (Opcional)
                 </label>
                 <textarea
                   rows={4}
-                  placeholder="Texto completo da matéria, detalhes, opiniões e análises..."
+                  placeholder="Texto completo da matéria..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
 
-              {/* Category & Featured */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-300 mb-1">
@@ -707,7 +627,6 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                 </div>
               </div>
 
-              {/* Tags & Source & Link */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-300 mb-1">
@@ -715,7 +634,7 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="gta6, ps5, rumor"
+                    placeholder="ps5, xbox, noticia"
                     value={tagsInput}
                     onChange={(e) => setTagsInput(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
@@ -728,7 +647,7 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="Rockstar Games / Alerta Game"
+                    placeholder="Alerta Game Editorial"
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
@@ -749,7 +668,6 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                 </div>
               </div>
 
-              {/* Switches */}
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
                 <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-200">
                   <input
@@ -758,7 +676,7 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                     onChange={(e) => setFeatured(e.target.checked)}
                     className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
                   />
-                  <span>Destacar como notícia principal no Hero Banner</span>
+                  <span>Destacar notícia no topo do app</span>
                 </label>
 
                 {!editingArticle && (
@@ -771,13 +689,12 @@ export const AdminNewsTab: React.FC<AdminNewsTabProps> = ({
                     />
                     <span className="flex items-center gap-1.5 text-cyan-300">
                       <Bell className="w-3.5 h-3.5" />
-                      Enviar notificação aos usuários interessados em {category}
+                      Enviar notificação para {category}
                     </span>
                   </label>
                 )}
               </div>
 
-              {/* Form Buttons */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
