@@ -8,12 +8,12 @@ const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
 
 /**
- * Cloud Function Agendada v2
+ * Cloud Function Agendada v2 (A cada 2 horas)
  */
 export const scheduledNewsSync = onSchedule(
   {
     region: REGION,
-    schedule: 'every 10 minutes',
+    schedule: 'every 2 hours', // Alterado de 'every 10 minutes' para otimizar recursos
     timeZone: 'America/Sao_Paulo',
     retryCount: 1,
     timeoutSeconds: 300,
