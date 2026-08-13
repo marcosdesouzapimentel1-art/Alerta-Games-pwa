@@ -8,4 +8,5 @@ if (!getApps().length) {
   });
 }
 
-export const db = getFirestore('(default)');
+// Conecta explicitamente no ID de banco "default" do seu Firestore
+export const db = getFirestore('default');
