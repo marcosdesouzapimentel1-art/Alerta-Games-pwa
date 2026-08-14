@@ -24,7 +24,7 @@ export const Header: React.FC = React.memo(() => {
     <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 transition-colors duration-200">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         
-        {/* Brand Logo + Nome Alerta Game */}
+        {/* Brand Logo + Nome Alerta Game + Tag Beta */}
         <div
           onClick={() => setActiveTab('inicio')}
           className="flex items-center gap-3 cursor-pointer group select-none py-1"
@@ -35,9 +35,14 @@ export const Header: React.FC = React.memo(() => {
             className="h-10 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.4)] group-hover:scale-105 transition-transform duration-200"
           />
           <div className="flex flex-col">
-            <span className="font-heading font-extrabold text-xl tracking-wider bg-gradient-to-r from-white via-slate-100 to-cyan-400 bg-clip-text text-transparent">
-              ALERTA GAME
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-heading font-extrabold text-xl tracking-wider bg-gradient-to-r from-white via-slate-100 to-cyan-400 bg-clip-text text-transparent">
+                ALERTA GAME
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 animate-pulse">
+                BETA
+              </span>
+            </div>
             <span className="text-[10px] text-slate-400 font-medium tracking-wide -mt-1 hidden xs:block">
               Notícias & Ofertas Gamer
             </span>
