@@ -81,14 +81,13 @@ export const getAdminDashboardStats = async (): Promise<AdminDashboardStats> => 
     ]);
 
     const totalUsers = users.length;
-    const activeUsers = users.length; // Quantidade de usuários cadastrados reais
+    const activeUsers = users.length;
     const newsCount = news.length;
     const couponsCount = coupons.length;
     const dealsCount = deals.length;
     const freeGamesCount = freeGames.length;
     const notificationsSentCount = notifications.length;
 
-    // Gera os últimos 7 dias dinâmicos para o gráfico
     const recentActivityDays = Array.from({ length: 7 }).map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
@@ -319,7 +318,7 @@ export interface SendNotificationPayload {
   image?: string;
   category: AlertCategory | string;
   link?: string;
-  targetAudience: 'todos' | string; // 'todos' or category name
+  targetAudience: 'todos' | string; 
 }
 
 export const sendManualNotificationAdmin = async (
@@ -328,10 +327,10 @@ export const sendManualNotificationAdmin = async (
 ): Promise<number> => {
   const users = await getCollection<UserProfile>('users');
   let targetCount = 0;
+  const fcmTokens: string[] = []; // Array para agrupar os tokens de disparo
 
   const notifIdPrefix = `notif_manual_${Date.now()}`;
 
-  // Broadcast to all registered users or targeted list
   const filteredUsers =
     payload.targetAudience === 'todos'
       ? users
@@ -344,6 +343,8 @@ export const sendManualNotificationAdmin = async (
 
   for (const u of targets) {
     const notifId = `${notifIdPrefix}_${u.uid}`;
+    
+    // Salva a notificação visual na base de dados
     await setDocument(
       'notifications',
       notifId,
@@ -361,9 +362,13 @@ export const sendManualNotificationAdmin = async (
       false
     );
     targetCount++;
+
+    // Extrai o Token FCM do usuário (se existir)
+    if ((u as any).fcmToken) {
+      fcmTokens.push((u as any).fcmToken);
+    }
   }
 
-  // Also store a global notification template
   await setDocument(
     'notifications',
     `${notifIdPrefix}_global`,
@@ -381,12 +386,38 @@ export const sendManualNotificationAdmin = async (
     false
   );
 
+  // --- DISPARO REAL DO PUSH VIA NODE.JS (FIREBASE CLOUD FUNCTIONS) ---
+  if (fcmTokens.length > 0) {
+    try {
+      // Endpoint da sua Cloud Function (você deve atualizar esta URL após o deploy)
+      const CLOUD_FUNCTION_URL = 'https://us-central1-SEU-PROJETO-ID.cloudfunctions.net/dispararPushFCM';
+
+      await fetch(CLOUD_FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokens: fcmTokens,
+          notification: {
+            title: payload.title,
+            body: payload.message,
+            image: payload.image || '',
+          },
+          data: {
+            url: payload.link || '',
+          }
+        })
+      });
+    } catch (e) {
+      console.error("Falha ao comunicar com o servidor Node.js para disparo de FCM:", e);
+    }
+  }
+
   await logAdminAction(
     adminUser.uid,
     adminUser.name,
     'Envio de Notificação Manual',
     payload.title,
-    `Público: ${payload.targetAudience}, Recebedores: ${targetCount}`
+    `Público: ${payload.targetAudience}, Recebedores: ${targetCount}, Push disparados: ${fcmTokens.length}`
   );
 
   return targetCount;
