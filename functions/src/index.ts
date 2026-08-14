@@ -3,6 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
+import { runFreeGamesSync } from './services/freeGamesSync';
 import { getMessaging } from 'firebase-admin/messaging';
 
 const corsHandler = cors({ origin: true });
@@ -33,7 +34,7 @@ export const scheduledNewsSync = onSchedule(
 );
 
 /**
- * Função HTTP Manual
+ * Função HTTP Manual para Notícias
  */
 export const syncNewsManual = onRequest(
   {
@@ -63,6 +64,43 @@ export const syncNewsManual = onRequest(
         res.status(500).json({
           success: false,
           message: 'Erro ao executar sincronização manual',
+          error: error.message
+        });
+      }
+    });
+  }
+);
+
+/**
+ * Função HTTP Manual para Sincronizar Jogos Grátis da Epic
+ */
+export const syncFreeGamesManual = onRequest(
+  {
+    region: REGION,
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    cors: true,
+  },
+  (req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST' && req.method !== 'GET') {
+        res.status(405).json({ success: false, message: 'Método não permitido.' });
+        return;
+      }
+
+      try {
+        console.log('[HTTP Manual] Sincronização de jogos grátis acionada...');
+        const result = await runFreeGamesSync();
+        res.status(200).json({
+          success: true,
+          message: `${result.count} jogos grátis sincronizados com sucesso!`,
+          durationMs: result.durationMs
+        });
+      } catch (error: any) {
+        console.error("Erro na sincronização de jogos grátis:", error);
+        res.status(500).json({
+          success: false,
+          message: 'Erro ao executar sincronização de jogos grátis',
           error: error.message
         });
       }
