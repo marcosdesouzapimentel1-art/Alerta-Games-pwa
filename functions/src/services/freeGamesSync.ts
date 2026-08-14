@@ -12,31 +12,33 @@ export const runFreeGamesSync = async (): Promise<{ count: number; durationMs: n
     const elements = data?.data?.Catalog?.searchStore?.elements || [];
 
     for (const game of elements) {
-      const promotionalOffers = game.promotions?.promotionalOffers;
-      
-      // Verifica se o jogo está realmente em oferta promocional ativa
-      const isFree = game.price?.totalPrice?.discountPrice === 0;
+      // Validação ultra segura para evitar qualquer erro de propriedades indefinidas
+      const price = game?.price?.totalPrice?.discountPrice;
+      const isFree = price === 0;
       if (!isFree) continue;
 
-      const title = game.title;
-      const description = game.description || 'Resgate este jogo gratuitamente na Epic Games Store.';
-      const coverImage = game.keyImages?.find((img: any) => img.type === 'DieselStoreFrontWide')?.url || 
-                         game.keyImages?.[0]?.url || '';
+      const title = game?.title || 'Jogo Grátis Epic';
+      const description = game?.description || 'Resgate este jogo gratuitamente na Epic Games Store.';
       
-      const slug = game.catalogNs?.mappings?.[0]?.pageSlug || title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const images = game?.keyImages || [];
+      const coverImage = images.find((img: any) => img?.type === 'DieselStoreFrontWide')?.url || 
+                         images[0]?.url || '';
+      
+      const mappings = game?.catalogNs?.mappings;
+      const slug = mappings?.[0]?.pageSlug || title.toLowerCase().replace(/[^a-z0-9]/g, '-');
       const storeUrl = `https://store.epicgames.com/p/${slug}`;
 
-      const gameId = `epic_free_${game.id || Date.now()}`;
+      const gameId = `epic_free_${game?.id || Date.now()}`;
 
-      // Tenta pegar a data de término com total segurança para evitar erros de undefined
       let endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       try {
-        const promotionalOffer = promotionalOffers?.[0]?.promotionalOffers?.[0];
-        if (promotionalOffer?.endDate) {
-          endDate = promotionalOffer.endDate;
+        const promotionalOffers = game?.promotions?.promotionalOffers;
+        const offer = promotionalOffers?.[0]?.promotionalOffers?.[0];
+        if (offer?.endDate) {
+          endDate = offer.endDate;
         }
       } catch (e) {
-        // Mantém a data padrão de 7 dias caso falhe
+        // Mantém a data padrão
       }
 
       await db.collection('free_games').doc(gameId).set({
