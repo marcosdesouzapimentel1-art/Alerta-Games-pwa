@@ -21,11 +21,10 @@ import {
 import { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
 const FeaturedNewsCard: React.FC<{ article: NewsArticle; onSelect: (article: NewsArticle) => void }> = React.memo(({ article, onSelect }) => {
-  console.count('[Render] FeaturedNewsCard');
   return (
     <section
       onClick={() => onSelect(article)}
-      className="group relative h-80 sm:h-96 w-full rounded-3xl overflow-hidden border border-slate-800 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer shadow-2xl bg-slate-950"
+      className="group relative h-80 sm:h-[420px] lg:h-[480px] w-full rounded-3xl overflow-hidden border border-slate-800 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer shadow-2xl bg-slate-950"
     >
       <img
         src={article.image || article.imageUrl}
@@ -33,37 +32,41 @@ const FeaturedNewsCard: React.FC<{ article: NewsArticle; onSelect: (article: New
         referrerPolicy="no-referrer"
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/20" />
 
       {/* Top Badges */}
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-        <span className="px-3 py-1 rounded-xl text-xs font-black uppercase bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20 flex items-center gap-1">
-          <Flame className="w-3.5 h-3.5 fill-current animate-pulse" />
-          Destaque
+      <div className="absolute top-4 sm:top-6 left-4 sm:left-6 right-4 sm:right-6 flex items-center justify-between">
+        <span className="px-3.5 py-1.5 rounded-xl text-xs font-black uppercase bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25 flex items-center gap-1.5">
+          <Flame className="w-4 h-4 fill-current animate-pulse text-slate-950" />
+          Matéria em Destaque
         </span>
-        <span className="px-3 py-1 rounded-xl text-xs font-bold bg-slate-950/80 backdrop-blur-md text-slate-300 border border-slate-800 flex items-center gap-1">
+        <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950/85 backdrop-blur-md text-slate-300 border border-slate-800 flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-cyan-400" />
-          {article.readTimeMinutes || 3} min
+          {article.readTimeMinutes || 3} min de leitura
         </span>
       </div>
 
-      {/* Bottom Info Content */}
-      <div className="absolute bottom-6 left-6 right-6 space-y-2">
-        <div className="flex items-center gap-2 text-xs text-cyan-300 font-bold">
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-cyan-500/30 text-cyan-400 uppercase">
+      {/* Bottom Info Content Widescreen */}
+      <div className="absolute bottom-6 sm:bottom-8 left-6 sm:left-8 right-6 sm:right-8 space-y-3 max-w-4xl">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-cyan-300 font-bold">
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-cyan-500/30 text-cyan-400 uppercase tracking-wider">
             {article.category}
           </span>
-          <span>•</span>
-          <span>{article.source}</span>
-          <span>•</span>
-          <span>{new Date(article.publishedAt).toLocaleDateString('pt-BR')}</span>
+          <span className="text-slate-600">•</span>
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-200">
+            {article.source}
+          </span>
+          <span className="text-slate-600">•</span>
+          <span className="text-slate-400 font-medium">
+            {new Date(article.publishedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+          </span>
         </div>
 
-        <h2 className="text-xl sm:text-3xl font-black font-heading text-white group-hover:text-cyan-300 transition-colors line-clamp-2 leading-tight">
+        <h2 className="text-xl sm:text-3xl lg:text-4xl font-black font-heading text-white group-hover:text-cyan-300 transition-colors line-clamp-2 leading-tight tracking-tight">
           {article.title}
         </h2>
 
-        <p className="text-slate-300 text-xs sm:text-sm line-clamp-2 leading-relaxed">
+        <p className="text-slate-300 text-xs sm:text-sm lg:text-base line-clamp-2 leading-relaxed font-normal">
           {article.summary}
         </p>
       </div>
@@ -71,10 +74,10 @@ const FeaturedNewsCard: React.FC<{ article: NewsArticle; onSelect: (article: New
   );
 });
 
+// Grid adaptativo: 1 col (celular) -> 2 cols (tablet) -> 3 cols (desktop médio) -> 4 cols (monitores Full HD)
 const NewsGrid: React.FC<{ articles: NewsArticle[] }> = React.memo(({ articles }) => {
-  console.count('[Render] NewsGrid');
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
       {articles.map((news) => (
         <CardNoticia key={news.id} news={news} />
       ))}
@@ -83,7 +86,6 @@ const NewsGrid: React.FC<{ articles: NewsArticle[] }> = React.memo(({ articles }
 });
 
 export const NoticiasView: React.FC = () => {
-  console.count('[Render] NoticiasView');
   const { setSelectedNews, showToast } = useApp();
 
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -108,11 +110,9 @@ export const NoticiasView: React.FC = () => {
   const touchStartY = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load news from Firestore (initial load or silent refresh)
+  // Load news from Firestore
   const fetchNews = useCallback(async (category: string = 'Todas', search: string = '', silent: boolean = false) => {
-    console.log(`[Audit - NoticiasView] fetchNews chamado | Categoria: "${category}" | Busca: "${search}" | Silent: ${silent} | Hora: ${new Date().toLocaleTimeString()}`);
     if (!silent) {
-      console.log('[Audit - NoticiasView] Executando setIsLoading(true)');
       setIsLoading(true);
     }
 
@@ -120,11 +120,10 @@ export const NoticiasView: React.FC = () => {
       const res = await getNewsFromFirestore({
         category,
         searchQuery: search,
-        pageSize: 9,
+        pageSize: 12, // Aumentado para preencher bonito as 4 colunas
         lastDocSnap: null,
       });
 
-      console.log(`[Audit - NoticiasView] setArticles chamado com ${res.articles.length} notícias retornadas do Firestore`);
       setArticles(res.articles);
       setLastVisibleDoc(res.lastVisibleDoc);
       setHasMore(res.hasMore);
@@ -132,28 +131,25 @@ export const NoticiasView: React.FC = () => {
       console.error('Erro ao carregar notícias:', error);
     } finally {
       if (!silent) {
-        console.log('[Audit - NoticiasView] Executando setIsLoading(false)');
         setIsLoading(false);
       }
     }
   }, []);
 
-  // Pagination function using lastVisibleDoc
+  // Pagination function
   const loadMoreNews = useCallback(async () => {
     if (!lastVisibleDoc || isFetchingMore || !hasMore) return;
 
-    console.log('[Audit - NoticiasView] loadMoreNews chamado para paginação');
     setIsFetchingMore(true);
 
     try {
       const res = await getNewsFromFirestore({
         category: selectedCategory,
         searchQuery,
-        pageSize: 9,
+        pageSize: 12,
         lastDocSnap: lastVisibleDoc,
       });
 
-      console.log(`[Audit - NoticiasView] setArticles (append) chamado com +${res.articles.length} notícias`);
       setArticles((prev) => {
         const existingIds = new Set(prev.map((a) => a.id));
         const newUnique = res.articles.filter((a) => !existingIds.has(a.id));
@@ -169,7 +165,6 @@ export const NoticiasView: React.FC = () => {
     }
   }, [lastVisibleDoc, isFetchingMore, hasMore, selectedCategory, searchQuery]);
 
-  // Maintain stable refs for real-time listeners & timers
   const fetchNewsRef = useRef(fetchNews);
   useEffect(() => {
     fetchNewsRef.current = fetchNews;
@@ -182,26 +177,20 @@ export const NoticiasView: React.FC = () => {
     searchQueryRef.current = searchQuery;
   }, [selectedCategory, searchQuery]);
 
-  // Category and search filter changes
   useEffect(() => {
-    console.log(`[Audit - NoticiasView] Effect de filtro/pesquisa disparado | Categoria: "${selectedCategory}" | Busca: "${searchQuery}"`);
     fetchNews(selectedCategory, searchQuery, false);
   }, [selectedCategory, searchQuery, fetchNews]);
 
-  // Setup background auto-sync and real-time listeners once on mount
   useEffect(() => {
-    console.log('[Audit - NoticiasView] Mount: Configurando listeners e auto-sync de notícias');
     newsAggregator.startAutoSync(10);
 
     const unsubSync = newsAggregator.subscribeSync(() => {
-      console.log('[Audit - NoticiasView] Evento de sync do newsAggregator capturado! Disparando fetchNews silencioso.');
       setMinutesAgo(newsAggregator.getMinutesSinceLastSync());
       setRecentLogs(newsAggregator.getRecentLogs());
       fetchNewsRef.current(selectedCategoryRef.current, searchQueryRef.current, true);
     });
 
     const unsubRealtime = newsAggregator.subscribeFirestoreNewsRealtime(() => {
-      console.log('[Audit - NoticiasView] Evento real-time Firestore capturado! Disparando fetchNews silencioso.');
       fetchNewsRef.current(selectedCategoryRef.current, searchQueryRef.current, true);
     });
 
@@ -210,14 +199,12 @@ export const NoticiasView: React.FC = () => {
     }, 30000);
 
     return () => {
-      console.log('[Audit - NoticiasView] Unmount: Limpando listeners e timers');
       unsubSync();
       unsubRealtime();
       clearInterval(intervalTimer);
     };
   }, []);
 
-  // Manual Sync trigger
   const handleSyncNews = async () => {
     setIsSyncing(true);
     try {
@@ -234,7 +221,7 @@ export const NoticiasView: React.FC = () => {
       await fetchNews(selectedCategory, searchQuery, true);
     } catch (error) {
       console.error('Erro ao sincronizar notícias:', error);
-      showToast('Erro ao atualizar notícias. Fontes de contingência ativas.');
+      showToast('Erro ao atualizar notícias.');
     } finally {
       setIsSyncing(false);
       setPullY(0);
@@ -242,7 +229,6 @@ export const NoticiasView: React.FC = () => {
     }
   };
 
-  // Touch handlers for Pull to Refresh
   const handleTouchStart = (e: React.TouchEvent) => {
     if (window.scrollY === 0) {
       touchStartY.current = e.touches[0].clientY;
@@ -277,7 +263,7 @@ export const NoticiasView: React.FC = () => {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="space-y-6 pb-20 relative min-h-screen"
+      className="space-y-6 pb-20 relative min-h-screen w-full"
     >
       {/* Pull to Refresh Visual Indicator */}
       {(pullY > 0 || isSyncing) && (
@@ -297,34 +283,33 @@ export const NoticiasView: React.FC = () => {
       )}
 
       {/* Screen Title & Quick Sync Action */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/40 p-4 sm:p-5 rounded-3xl border border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-500/10">
-            <Newspaper className="w-6 h-6" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/40 p-4 sm:p-6 rounded-3xl border border-slate-800/80 shadow-xl">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3.5 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-500/10 shrink-0">
+            <Newspaper className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-black font-heading text-slate-100 flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-black font-heading text-slate-100 flex items-center gap-2.5">
               Central de Notícias
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider flex items-center gap-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold uppercase tracking-wider flex items-center gap-1.5">
                 <Radio className="w-3 h-3 animate-pulse" />
                 Em Tempo Real
               </span>
             </h1>
             
-            {/* Visual Indicator: Última atualização há X minutos */}
-            <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mt-1">
               <Clock className="w-3.5 h-3.5 text-cyan-400" />
               <span>
                 {minutesAgo === 0
                   ? 'Última atualização agora mesmo'
                   : `Última atualização há ${minutesAgo} ${minutesAgo === 1 ? 'minuto' : 'minutos'}`}
               </span>
-              <span className="text-slate-600">•</span>
+              <span className="text-slate-600 hidden sm:inline">•</span>
               <button
                 onClick={() => setShowLogsModal(true)}
                 className="text-cyan-400 hover:underline text-xs font-semibold flex items-center gap-1 cursor-pointer"
               >
-                <Activity className="w-3 h-3" />
+                <Activity className="w-3.5 h-3.5" />
                 Logs de Sincronização
               </button>
             </div>
@@ -334,7 +319,7 @@ export const NoticiasView: React.FC = () => {
         <button
           onClick={handleSyncNews}
           disabled={isSyncing}
-          className="py-2.5 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 cursor-pointer shrink-0"
+          className="py-3 px-5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 disabled:opacity-50 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-500/20 cursor-pointer shrink-0"
         >
           <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
           <span>{isSyncing ? 'Atualizando...' : 'Sincronizar Notícias'}</span>
@@ -342,19 +327,19 @@ export const NoticiasView: React.FC = () => {
       </div>
 
       {/* Sources Chips Summary */}
-      <div className="bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80 flex items-center justify-between overflow-x-auto no-scrollbar gap-2 text-[11px] text-slate-400">
-        <span className="font-bold text-slate-300 shrink-0 flex items-center gap-1">
-          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+      <div className="bg-slate-950/60 p-3 sm:p-4 rounded-2xl border border-slate-800/80 flex items-center justify-between overflow-x-auto no-scrollbar gap-3 text-xs text-slate-400">
+        <span className="font-bold text-slate-200 shrink-0 flex items-center gap-1.5">
+          <Sparkles className="w-4 h-4 text-cyan-400" />
           7 Fontes Agregadas:
         </span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300">RAWG API</span>
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">IGN</span>
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">GameSpot</span>
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">VGC</span>
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-blue-300">PlayStation</span>
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-emerald-300">Xbox</span>
-          <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-rose-300">Nintendo</span>
+        <div className="flex items-center gap-2 shrink-0 font-medium">
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300">RAWG API</span>
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">IGN</span>
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">GameSpot</span>
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">VGC</span>
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-blue-300">PlayStation</span>
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-emerald-300">Xbox</span>
+          <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-rose-300">Nintendo</span>
         </div>
       </div>
 
@@ -366,12 +351,12 @@ export const NoticiasView: React.FC = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Pesquisar notícias, títulos, tags (ex: GTA 6, PS5, Steam)..."
-          className="w-full pl-11 pr-10 py-3 rounded-2xl bg-slate-900/80 border border-slate-800 focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500 text-slate-100 placeholder-slate-500 text-xs sm:text-sm transition-all"
+          className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500 text-slate-100 placeholder-slate-500 text-sm transition-all shadow-inner"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -390,9 +375,9 @@ export const NoticiasView: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all duration-200 cursor-pointer shrink-0 ${
+                className={`py-2 px-4 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all duration-200 cursor-pointer shrink-0 ${
                   isSelected
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20 scale-105'
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/25 scale-105'
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
@@ -410,8 +395,8 @@ export const NoticiasView: React.FC = () => {
 
       {/* Skeleton Loading State */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6 pt-4">
+          {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
               className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 space-y-4 animate-pulse"
@@ -428,7 +413,6 @@ export const NoticiasView: React.FC = () => {
           ))}
         </div>
       ) : articles.length === 0 ? (
-        /* Empty Search/Filter State */
         <div className="text-center py-16 px-4 bg-slate-900/40 rounded-3xl border border-slate-800 space-y-3">
           <Newspaper className="w-12 h-12 text-slate-600 mx-auto" />
           <h3 className="text-lg font-bold text-slate-200">
@@ -448,13 +432,12 @@ export const NoticiasView: React.FC = () => {
           </button>
         </div>
       ) : (
-        /* News Cards Grid */
-        <div className="space-y-6">
+        <div className="space-y-8">
           <NewsGrid articles={searchQuery || selectedCategory !== 'Todas' ? articles : gridArticles} />
 
-          {/* Infinite Pagination Controls */}
+          {/* Pagination Controls */}
           {hasMore && (
-            <div className="text-center pt-6">
+            <div className="text-center pt-4">
               <button
                 onClick={loadMoreNews}
                 disabled={isFetchingMore}
@@ -525,7 +508,6 @@ export const NoticiasView: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Successful Sources */}
                     <div className="flex flex-wrap gap-1 pt-1">
                       {log.sourcesSuccessful.map((src) => (
                         <span key={src} className="px-2 py-0.5 rounded-md bg-emerald-950/40 text-emerald-300 border border-emerald-800/40 text-[10px] flex items-center gap-1">
