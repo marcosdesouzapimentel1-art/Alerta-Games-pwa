@@ -1,96 +1,80 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    
     function isAuthenticated() {
       return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isOwner(userId) && (request.resource.data.role == 'user' || !('role' in request.resource.data));
-      allow update: if isAdmin() || (isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role));
-      allow delete: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
-    // Admin Logs collection - strictly admin
+    // Admin Logs
     match /admin_logs/{logId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
-    // Favorites collection
+    // Favorites
     match /favorites/{favoriteId} {
-      allow read, write: if isAuthenticated() && (
-        resource == null || resource.data.userId == request.auth.uid || isAdmin()
-      );
+      allow read, write: if isAuthenticated();
     }
 
-    // Push notification tokens collection
+    // Push notification tokens
     match /fcm_tokens/{tokenId} {
       allow read, write: if isAuthenticated();
     }
 
-    // Notifications collection - admin pode ler/escrever tudo; usuário lê as suas e globais
+    // Notifications - permite leitura e gravação para autenticados
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update, delete: if (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid)) || isAdmin();
+      allow read, write: if isAuthenticated();
     }
 
-    // Notification preferences collection
+    // Notification preferences
     match /notification_preferences/{prefId} {
       allow read, write: if isAuthenticated();
     }
 
-    // News collection - public read, write strictly for admin
+    // News
     match /news/{newsId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
-    // News sync logs - public read, write strictly for admin
+    // News sync logs
     match /news_sync_logs/{logId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
-    // Coupons collection - public read, write strictly for admin
+    // Coupons
     match /coupons/{couponId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
-    // Free Games collection - public read, write strictly for admin
+    // Free Games
     match /free_games/{gameId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
     match /freeGames/{gameId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
-    // Deals / Promotions collection - public read, write strictly for admin
+    // Deals / Promotions
     match /deals/{dealId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
-    // Default fallback: admin tem permissão total; outros negados
+    // Fallback geral
     match /{document=**} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAuthenticated();
     }
   }
 }
