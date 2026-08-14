@@ -4,19 +4,9 @@ import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 import * as admin from 'firebase-admin';
-import 'firebase-admin/messaging'; // Importa explicitamente o módulo de mensagens
 
 const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
-
-// Inicializa o admin do firebase de forma segura
-try {
-  if (!admin.apps.length) {
-    admin.initializeApp();
-  }
-} catch (e) {
-  console.error("Erro ao inicializar admin:", e);
-}
 
 /**
  * Cloud Function Agendada v2 (A cada 2 horas)
@@ -115,6 +105,7 @@ export const dispararPushFCM = onRequest(
       };
 
       try {
+        // Usa o messaging diretamente do admin sem checar apps.length manualmente
         const response = await admin.messaging().sendEachForMulticast(message);
         console.log(`${response.successCount} notificações FCM enviadas com sucesso!`);
         
