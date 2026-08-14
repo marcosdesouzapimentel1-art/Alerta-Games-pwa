@@ -14,23 +14,28 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('alerta-game-theme') as ThemeMode;
-    return saved || 'dark'; // Dark theme default as requested
+    return saved || 'dark'; // Dark theme default
   });
 
   const [isDark, setIsDark] = useState<boolean>(true);
 
   useEffect(() => {
     const root = document.documentElement;
+    const body = document.body;
 
     const applyDark = () => {
       root.classList.add('dark');
       root.classList.remove('light');
+      body.style.backgroundColor = '#020617'; // slate-950
+      body.style.color = '#f8fafc'; // slate-50
       setIsDark(true);
     };
 
     const applyLight = () => {
       root.classList.remove('dark');
       root.classList.add('light');
+      body.style.backgroundColor = '#f8fafc'; // slate-50
+      body.style.color = '#0f172a'; // slate-900
       setIsDark(false);
     };
 
@@ -39,7 +44,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else if (theme === 'light') {
       applyLight();
     } else {
-      // system mode
       const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (systemDark) applyDark();
       else applyLight();
