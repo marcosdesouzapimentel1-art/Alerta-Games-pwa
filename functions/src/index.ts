@@ -4,6 +4,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 import * as admin from 'firebase-admin';
+import { getMessaging } from 'firebase-admin/messaging';
 
 const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
@@ -105,8 +106,8 @@ export const dispararPushFCM = onRequest(
       };
 
       try {
-        // Usa o messaging diretamente do admin sem checar apps.length manualmente
-        const response = await admin.messaging().sendEachForMulticast(message);
+        // Usa o getMessaging modular importado do admin/messaging
+        const response = await getMessaging().sendEachForMulticast(message);
         console.log(`${response.successCount} notificações FCM enviadas com sucesso!`);
         
         res.status(200).json({ 
