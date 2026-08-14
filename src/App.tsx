@@ -109,8 +109,8 @@ const AppContent: React.FC = () => {
       {/* Header */}
       <Header />
 
-      {/* Main View Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-4 pb-24">
+      {/* Main View Area - Expandido para Widescreen no PC mantendo fluidez no Celular */}
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-8 lg:px-12 pt-4 pb-24">
         {renderActiveView()}
       </main>
 
