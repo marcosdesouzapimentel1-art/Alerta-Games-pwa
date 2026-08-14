@@ -450,3 +450,35 @@ export const updateUserRoleAdmin = async (
     `Novo papel: ${newRole.toUpperCase()}`
   );
 };
+/**
+ * ACIONAR SINCRONIZAÇÃO MANUAL DE JOGOS GRÁTIS
+ */
+export const syncFreeGamesAdmin = async (
+  adminUser: { uid: string; name: string }
+): Promise<any> => {
+  try {
+    const CLOUD_FUNCTION_URL = 'https://southamerica-east1-alerta-game.cloudfunctions.net/syncFreeGamesManual';
+    
+    const response = await fetch(CLOUD_FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const data = await response.json();
+
+    if (data.success) {
+      await logAdminAction(
+        adminUser.uid,
+        adminUser.name,
+        'Sincronização de Jogos Grátis',
+        'Epic Games & Steam',
+        `Sucesso: ${data.message}`
+      );
+    }
+    
+    return data;
+  } catch (error: any) {
+    console.error("Falha ao sincronizar jogos grátis pelo Admin:", error);
+    throw error;
+  }
+};
