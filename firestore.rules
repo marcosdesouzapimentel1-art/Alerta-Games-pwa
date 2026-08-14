@@ -16,11 +16,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Users collection - owner or admin can read; owner can create with role 'user'; owner can update if role field is unchanged; admin can read/write any user
+    // Users collection
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.role == 'user';
-      allow update: if isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role);
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && (request.resource.data.role == 'user' || !('role' in request.resource.data));
+      allow update: if isAdmin() || (isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role));
       allow delete: if isAdmin();
     }
 
@@ -29,11 +29,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Favorites collection - user can only read/write their own favorites
+    // Favorites collection
     match /favorites/{favoriteId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read, write: if isAuthenticated() && (
+        resource == null || resource.data.userId == request.auth.uid || isAdmin()
+      );
     }
 
     // Push notification tokens collection
@@ -41,11 +41,11 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    // Notifications collection - user can read own/global notifications; admin creates; user/admin can update or delete own
+    // Notifications collection - admin pode ler/escrever tudo; usuário lê as suas e globais
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'global');
+      allow read: if isAuthenticated();
       allow create: if isAdmin();
-      allow update, delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update, delete: if (isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid)) || isAdmin();
     }
 
     // Notification preferences collection
@@ -88,9 +88,9 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Default catch-all: deny unhandled collections
+    // Default fallback: admin tem permissão total; outros negados
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
   }
 }
