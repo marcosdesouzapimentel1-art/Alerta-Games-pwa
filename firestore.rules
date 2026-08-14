@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Leitura livre para o app/painel e gravação para usuários logados
+    // Leitura pública para o app e painel / Escrita permitida para usuários conectados
     match /{document=**} {
       allow read: if true;
       allow write: if request.auth != null;
