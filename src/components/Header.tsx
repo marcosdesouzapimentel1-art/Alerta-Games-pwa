@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, Sun, Moon, Download, Search, WifiOff, ShieldCheck, User } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { Bell, Download, Search, WifiOff, ShieldCheck, User } from 'lucide-react';
 import { usePWA } from '../contexts/PWAContext';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +9,6 @@ import logoImg from '../assets/logo.png';
 
 export const Header: React.FC = React.memo(() => {
   console.count('[Render] Header');
-  const { isDark, toggleTheme } = useTheme();
   const { isInstalled, isOnline } = usePWA();
   const { isAdmin } = useAuth();
   const {
@@ -23,7 +21,7 @@ export const Header: React.FC = React.memo(() => {
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-950 dark:bg-slate-950 backdrop-blur-xl border-b border-slate-800 transition-colors duration-200">
+    <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-xl border-b border-slate-800/80 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         
         {/* Brand Logo + Nome Alerta Game */}
@@ -114,20 +112,6 @@ export const Header: React.FC = React.memo(() => {
             isOpen={isInstallModalOpen}
             onClose={() => setIsInstallModalOpen(false)}
           />
-
-          {/* Theme Toggle Button */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-xl text-slate-400 hover:text-amber-400 hover:bg-slate-800/60 transition-colors cursor-pointer"
-            title={isDark ? 'Ativar Tema Claro' : 'Ativar Tema Escuro'}
-            aria-label="Alternar tema"
-          >
-            {isDark ? (
-              <Sun className="w-5 h-5 text-amber-400" />
-            ) : (
-              <Moon className="w-5 h-5 text-slate-400" />
-            )}
-          </button>
 
           {/* Notification Bell */}
           <button
