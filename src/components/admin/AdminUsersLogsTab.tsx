@@ -18,6 +18,7 @@ import {
   UserCog,
   RefreshCw,
 } from 'lucide-react';
+import logoImg from '../../assets/logo.png';
 
 interface AdminUsersLogsTabProps {
   adminUser: { uid: string; name: string };
@@ -52,9 +53,10 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
     setLoadingLogs(true);
     try {
       const data = await getAdminLogs();
-      setLogs(data);
+      setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching admin logs:', err);
+      setLogs([]);
     } finally {
       setLoadingLogs(false);
     }
@@ -64,9 +66,10 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
     setLoadingUsers(true);
     try {
       const data = await getAllUsersAdmin();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching admin users:', err);
+      setUsers([]);
     } finally {
       setLoadingUsers(false);
     }
@@ -79,9 +82,11 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
 
   const handleRoleToggle = async (targetUser: UserProfile) => {
     const newRole = targetUser.role === 'admin' ? 'user' : 'admin';
+    const targetName = targetUser.displayName || targetUser.name || targetUser.email || 'Usuário';
+    
     if (
       !window.confirm(
-        `Deseja alterar as permissões de ${targetUser.displayName || targetUser.email} para ${newRole.toUpperCase()}?`
+        `Deseja alterar as permissões de ${targetName} para ${newRole.toUpperCase()}?`
       )
     )
       return;
@@ -100,7 +105,7 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
 
       setFeedback({
         type: 'success',
-        message: `Permissões de ${targetUser.displayName || targetUser.email} alteradas para ${newRole.toUpperCase()}.`,
+        message: `Permissões de ${targetName} alteradas para ${newRole.toUpperCase()}.`,
       });
 
       await fetchLogsData();
@@ -110,19 +115,46 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
     }
   };
 
-  const filteredLogs = logs.filter(
-    (l) =>
-      l.userName.toLowerCase().includes(logSearchQuery.toLowerCase()) ||
-      l.action.toLowerCase().includes(logSearchQuery.toLowerCase()) ||
-      l.target.toLowerCase().includes(logSearchQuery.toLowerCase())
-  );
+  // Safe search filtering
+  const qLog = (logSearchQuery || '').toLowerCase().trim();
+  const filteredLogs = logs.filter((l) => {
+    if (!l) return false;
+    const name = String(l.userName || l.userId || '').toLowerCase();
+    const action = String(l.action || '').toLowerCase();
+    const target = String(l.target || '').toLowerCase();
+    return name.includes(qLog) || action.includes(qLog) || target.includes(qLog);
+  });
 
-  const filteredUsers = users.filter(
-    (u) =>
-      (u.displayName && u.displayName.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
-      (u.email && u.email.toLowerCase().includes(userSearchQuery.toLowerCase())) ||
-      u.uid.toLowerCase().includes(userSearchQuery.toLowerCase())
-  );
+  const qUser = (userSearchQuery || '').toLowerCase().trim();
+  const filteredUsers = users.filter((u) => {
+    if (!u) return false;
+    const displayName = String(u.displayName || u.name || '').toLowerCase();
+    const email = String(u.email || '').toLowerCase();
+    const uid = String(u.uid || '').toLowerCase();
+    return displayName.includes(qUser) || email.includes(qUser) || uid.includes(qUser);
+  });
+
+  const formatDate = (dateVal: any) => {
+    try {
+      if (!dateVal) return 'Data não disponível';
+      if (dateVal.seconds) return new Date(dateVal.seconds * 1000).toLocaleDateString('pt-BR');
+      const d = new Date(dateVal);
+      return isNaN(d.getTime()) ? 'Data não disponível' : d.toLocaleDateString('pt-BR');
+    } catch {
+      return 'Data não disponível';
+    }
+  };
+
+  const formatDateTime = (dateVal: any) => {
+    try {
+      if (!dateVal) return 'Data não disponível';
+      if (dateVal.seconds) return new Date(dateVal.seconds * 1000).toLocaleString('pt-BR');
+      const d = new Date(dateVal);
+      return isNaN(d.getTime()) ? 'Data não disponível' : d.toLocaleString('pt-BR');
+    } catch {
+      return 'Data não disponível';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -236,17 +268,17 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/80">
-                    {filteredLogs.map((log) => (
-                      <tr key={log.id || log.timestamp} className="hover:bg-slate-800/50 transition-colors">
+                    {filteredLogs.map((log, idx) => (
+                      <tr key={log.id || idx} className="hover:bg-slate-800/50 transition-colors">
                         <td className="py-3 px-4 font-bold text-slate-100 flex items-center gap-2">
                           <UserCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                          <span>{log.userName || log.userId}</span>
+                          <span>{log.userName || log.userId || 'Admin'}</span>
                         </td>
-                        <td className="py-3 px-4 font-bold text-cyan-300">{log.action}</td>
-                        <td className="py-3 px-4 text-slate-200">{log.target}</td>
+                        <td className="py-3 px-4 font-bold text-cyan-300">{log.action || '-'}</td>
+                        <td className="py-3 px-4 text-slate-200">{log.target || '-'}</td>
                         <td className="py-3 px-4 text-slate-400 text-[11px] font-mono">{log.details || '-'}</td>
                         <td className="py-3 px-4 text-slate-400 font-mono text-[11px] whitespace-nowrap">
-                          {new Date(log.timestamp).toLocaleString('pt-BR')}
+                          {formatDateTime(log.timestamp)}
                         </td>
                       </tr>
                     ))}
@@ -294,14 +326,14 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {filteredUsers.map((user) => (
                 <div
-                  key={user.uid}
+                  key={user.uid || Math.random().toString()}
                   className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <img
-                      src={user.photoURL || user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80'}
+                      src={user.photoURL || user.avatarUrl || logoImg}
                       alt={user.displayName || 'Gamer'}
-                      className="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0"
+                      className="w-10 h-10 rounded-xl object-cover bg-slate-950 border border-slate-800 shrink-0"
                     />
 
                     <div className="min-w-0">
@@ -310,7 +342,7 @@ export const AdminUsersLogsTab: React.FC<AdminUsersLogsTabProps> = ({
                       </h4>
                       <p className="text-[11px] text-slate-400 truncate">{user.email || user.uid}</p>
                       <span className="text-[10px] text-slate-500 font-mono">
-                        Cadastrado em: {new Date(user.createdAt).toLocaleDateString('pt-BR')}
+                        Cadastrado em: {formatDate(user.createdAt)}
                       </span>
                     </div>
                   </div>
