@@ -3,7 +3,6 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
-import * as admin from 'firebase-admin';
 import { getMessaging } from 'firebase-admin/messaging';
 
 const corsHandler = cors({ origin: true });
@@ -106,7 +105,6 @@ export const dispararPushFCM = onRequest(
       };
 
       try {
-        // Usa o getMessaging modular importado do admin/messaging
         const response = await getMessaging().sendEachForMulticast(message);
         console.log(`${response.successCount} notificações FCM enviadas com sucesso!`);
         
