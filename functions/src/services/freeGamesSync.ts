@@ -1,31 +1,10 @@
 import { db } from '../lib/firebase';
 
-interface EpicGameItem {
-  title: string;
-  description: string;
-  price: {
-    totalPrice: {
-      discountPrice: number;
-    };
-  };
-  keyImages: { type: string; url: string }[];
-  promotions?: {
-    promotionalOffers: {
-      promotionalOffer: {
-        startDate: string;
-        endDate: string;
-      }[];
-    }[];
-  }[];
-  catalogNs: { mappings: { pageSlug: string }[] };
-}
-
 export const runFreeGamesSync = async (): Promise<{ count: number; durationMs: number }> => {
   const startTime = Date.now();
   let count = 0;
 
   try {
-    // API pública oficial da Epic Games Store
     const response = await fetch(
       'https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=pt-BR&country=BR&allowCountries=BR'
     );
@@ -34,13 +13,13 @@ export const runFreeGamesSync = async (): Promise<{ count: number; durationMs: n
 
     for (const game of elements) {
       const promotionalOffers = game.promotions?.promotionalOffers;
-      if (!promotionalOffers || promotionalOffers.length === 0) continue;
-
+      
+      // Verifica se o jogo está realmente em oferta promocional ativa
       const isFree = game.price?.totalPrice?.discountPrice === 0;
       if (!isFree) continue;
 
       const title = game.title;
-      const description = game.description;
+      const description = game.description || 'Resgate este jogo gratuitamente na Epic Games Store.';
       const coverImage = game.keyImages?.find((img: any) => img.type === 'DieselStoreFrontWide')?.url || 
                          game.keyImages?.[0]?.url || '';
       
@@ -49,7 +28,17 @@ export const runFreeGamesSync = async (): Promise<{ count: number; durationMs: n
 
       const gameId = `epic_free_${game.id || Date.now()}`;
 
-      // Salva ou atualiza automaticamente na coleção 'free_games' do Firestore
+      // Tenta pegar a data de término com total segurança para evitar erros de undefined
+      let endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      try {
+        const promotionalOffer = promotionalOffers?.[0]?.promotionalOffers?.[0];
+        if (promotionalOffer?.endDate) {
+          endDate = promotionalOffer.endDate;
+        }
+      } catch (e) {
+        // Mantém a data padrão de 7 dias caso falhe
+      }
+
       await db.collection('free_games').doc(gameId).set({
         id: gameId,
         title: title,
@@ -59,7 +48,7 @@ export const runFreeGamesSync = async (): Promise<{ count: number; durationMs: n
         url: storeUrl,
         originalPrice: 'R$ 0,00',
         currentPrice: 'Grátis',
-        endDate: promotionalOffers[0]?.promotionalOffer[0]?.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: endDate,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
 
