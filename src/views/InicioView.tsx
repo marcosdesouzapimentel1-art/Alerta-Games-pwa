@@ -3,12 +3,13 @@ import { BannerPrincipal } from '../components/BannerPrincipal';
 import { CardNoticia } from '../components/CardNoticia';
 import { CardPromocao } from '../components/CardPromocao';
 import { CardLancamento } from '../components/CardLancamento';
-import { mockHeroBanners, mockDeals, mockReleases } from '../data/mockData';
+import { mockHeroBanners, mockReleases } from '../data/mockData';
 import { Flame, Newspaper, Rocket, ArrowRight, Sparkles, SlidersHorizontal } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { NEWS_CATEGORIES, getNewsFromFirestore } from '../services/newsService';
-import { NewsArticle } from '../types';
+import { NewsArticle, Promotion } from '../types';
+import { getCollection } from '../services/firestore';
 
 export const InicioView: React.FC = () => {
   const { setActiveTab, setSelectedCategory } = useApp();
@@ -17,12 +18,19 @@ export const InicioView: React.FC = () => {
   const [selectedNewsCategory, setSelectedNewsCategory] = useState<string>('Todas');
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(true);
+  
+  // Estado para guardar as promoções reais
+  const [flashDeals, setFlashDeals] = useState<Promotion[]>([]);
+  const [isDealsLoading, setIsDealsLoading] = useState<boolean>(true);
 
   const userInterests = userProfile?.gamePreferences || [];
 
+  // Busca Notícias e Promoções reais ao carregar a tela
   useEffect(() => {
     let isMounted = true;
     setIsNewsLoading(true);
+    
+    // Busca as Notícias
     getNewsFromFirestore({
       category: selectedNewsCategory,
       pageSize: 6,
@@ -33,6 +41,18 @@ export const InicioView: React.FC = () => {
       }
     }).catch(() => {
       if (isMounted) setIsNewsLoading(false);
+    });
+
+    // Busca as Ofertas reais do Firestore
+    getCollection<Promotion>('deals').then((deals) => {
+      if (isMounted) {
+        // Ordena para pegar os maiores descontos primeiro
+        const sortedDeals = deals.sort((a, b) => b.discountPercent - a.discountPercent);
+        setFlashDeals(sortedDeals);
+        setIsDealsLoading(false);
+      }
+    }).catch(() => {
+      if (isMounted) setIsDealsLoading(false);
     });
 
     return () => {
@@ -46,7 +66,7 @@ export const InicioView: React.FC = () => {
 
   const handleSeeAllDeals = () => {
     setSelectedCategory('Ofertas');
-    setActiveTab('categorias');
+    setActiveTab('promocoes'); // Corrigido para levar para a aba certa
   };
 
   return (
@@ -83,7 +103,7 @@ export const InicioView: React.FC = () => {
         <BannerPrincipal banners={mockHeroBanners} />
       </section>
 
-      {/* Flash Deals Section */}
+      {/* Flash Deals Section (Agora com dados 100% Reais) */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -94,7 +114,7 @@ export const InicioView: React.FC = () => {
               <h2 className="text-xl font-black font-heading text-slate-100 flex items-center gap-2">
                 Promoções Relâmpago
               </h2>
-              <p className="text-xs text-slate-400">Menores preços do dia na Steam, PS Store e Xbox</p>
+              <p className="text-xs text-slate-400">Menores preços do dia na Steam, PS Store e parceiros</p>
             </div>
           </div>
 
@@ -107,12 +127,24 @@ export const InicioView: React.FC = () => {
           </button>
         </div>
 
-        {/* Deals Horizontal Scroll */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {mockDeals.slice(0, 4).map((deal) => (
-            <CardPromocao key={deal.id} deal={deal} />
-          ))}
-        </div>
+        {/* Deals Grid - Renderiza só 4 itens */}
+        {isDealsLoading ? (
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-64 rounded-2xl bg-slate-900/50 border border-slate-800 animate-pulse" />
+            ))}
+          </div>
+        ) : flashDeals.length === 0 ? (
+          <div className="p-8 text-center bg-slate-900/40 rounded-2xl border border-slate-800 text-xs text-slate-400">
+            Nenhuma promoção relâmpago ativa no momento.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {flashDeals.slice(0, 4).map((deal) => (
+              <CardPromocao key={deal.id} deal={deal} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Latest News Section */}
