@@ -3,9 +3,15 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
+import * as admin from 'firebase-admin';
 
 const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
+
+// Inicializa o admin do firebase se já não estiver inicializado
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 /**
  * Cloud Function Agendada v2 (A cada 2 horas)
@@ -13,7 +19,7 @@ const REGION = 'southamerica-east1';
 export const scheduledNewsSync = onSchedule(
   {
     region: REGION,
-    schedule: 'every 2 hours', // Alterado de 'every 10 minutes' para otimizar recursos
+    schedule: 'every 2 hours', 
     timeZone: 'America/Sao_Paulo',
     retryCount: 1,
     timeoutSeconds: 300,
@@ -64,6 +70,57 @@ export const syncNewsManual = onRequest(
           message: 'Erro ao executar sincronização manual',
           error: error.message
         });
+      }
+    });
+  }
+);
+
+/**
+ * Nova Função HTTP para Disparo de Notificações Push (FCM)
+ */
+export const dispararPushFCM = onRequest(
+  {
+    region: REGION,
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    cors: true,
+  },
+  (req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST') {
+        res.status(405).json({ success: false, message: 'Método não permitido. Use POST.' });
+        return;
+      }
+
+      const { tokens, notification, data } = req.body;
+
+      if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+        res.status(400).json({ success: false, error: 'Nenhum token FCM fornecido.' });
+        return;
+      }
+
+      const message = {
+        tokens: tokens,
+        notification: {
+          title: notification?.title || 'Alerta Game',
+          body: notification?.body || 'Nova notificação para você!',
+          ...(notification?.image && { imageUrl: notification.image })
+        },
+        data: data || {},
+      };
+
+      try {
+        const response = await admin.messaging().sendEachForMulticast(message);
+        console.log(`${response.successCount} notificações FCM enviadas com sucesso!`);
+        
+        res.status(200).json({ 
+          success: true, 
+          sucessos: response.successCount,
+          falhas: response.failureCount 
+        });
+      } catch (error: any) {
+        console.error('Erro ao disparar push via FCM:', error);
+        res.status(500).json({ success: false, error: 'Erro interno no servidor Firebase ao enviar push.' });
       }
     });
   }
