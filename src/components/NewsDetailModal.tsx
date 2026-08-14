@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Clock, Bookmark, Share2, Heart, Eye, ArrowLeft } from 'lucide-react';
+import { X, Clock, Bookmark, Share2, Heart, Eye, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import logoImg from '../assets/logo.png';
 
 export const NewsDetailModal: React.FC = () => {
   const { selectedNews, setSelectedNews, favoriteNewsIds, toggleFavoriteNews, showToast } = useApp();
@@ -23,10 +24,19 @@ export const NewsDetailModal: React.FC = () => {
   };
 
   const imageSrc = selectedNews.image || selectedNews.imageUrl || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80';
-  const authorName = typeof selectedNews.author === 'string' ? selectedNews.author : selectedNews.author?.name || 'Alerta Game';
-  const authorAvatar = typeof selectedNews.author === 'object' && selectedNews.author?.avatarUrl
+  
+  // Nome do autor ou Redação Alerta Game
+  const authorName = typeof selectedNews.author === 'string' 
+    ? (selectedNews.author.includes('Mateus') ? 'Redação Alerta Game' : selectedNews.author)
+    : selectedNews.author?.name || 'Redação Alerta Game';
+
+  // Usa o novo logo neon oficial caso seja o Alerta Game ou não tenha avatar
+  const authorAvatar = (typeof selectedNews.author === 'object' && selectedNews.author?.avatarUrl && !selectedNews.author.avatarUrl.includes('unsplash'))
     ? selectedNews.author.avatarUrl
-    : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80';
+    : logoImg;
+
+  // Fonte da notícia
+  const sourceName = selectedNews.source || 'Alerta Game';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
@@ -36,7 +46,7 @@ export const NewsDetailModal: React.FC = () => {
         <div className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-md px-4 py-3 border-b border-slate-800 flex items-center justify-between">
           <button
             onClick={() => setSelectedNews(null)}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-slate-800/80 cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-slate-800/80 cursor-pointer transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar</span>
@@ -47,7 +57,7 @@ export const NewsDetailModal: React.FC = () => {
               onClick={() => toggleFavoriteNews(selectedNews.id)}
               className={`p-2 rounded-xl border transition-all cursor-pointer ${
                 isFavorited
-                  ? 'bg-rose-500 text-white border-rose-400'
+                  ? 'bg-rose-500 text-white border-rose-400 shadow-sm shadow-rose-500/20'
                   : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
               }`}
               title="Salvar Favorito"
@@ -57,7 +67,7 @@ export const NewsDetailModal: React.FC = () => {
 
             <button
               onClick={handleShare}
-              className="p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700 cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-colors"
               title="Compartilhar"
             >
               <Share2 className="w-4 h-4" />
@@ -65,7 +75,7 @@ export const NewsDetailModal: React.FC = () => {
 
             <button
               onClick={() => setSelectedNews(null)}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -86,7 +96,7 @@ export const NewsDetailModal: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
             
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-slate-300">
-              <span className="px-3 py-1 rounded-full font-bold uppercase bg-cyan-500 text-slate-950">
+              <span className="px-3 py-1 rounded-full font-bold uppercase bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20">
                 {selectedNews.category}
               </span>
               <span className="flex items-center gap-1 font-semibold bg-slate-950/80 px-2.5 py-1 rounded-full border border-slate-800">
@@ -108,17 +118,17 @@ export const NewsDetailModal: React.FC = () => {
                   src={authorAvatar}
                   alt={authorName}
                   referrerPolicy="no-referrer"
-                  className="w-8 h-8 rounded-full object-cover ring-2 ring-cyan-500/30"
+                  className="w-9 h-9 rounded-full object-cover bg-slate-950 p-0.5 ring-2 ring-cyan-500/40"
                 />
                 <div>
                   <span className="font-bold text-slate-200 block">{authorName}</span>
-                  <span className="text-[10px] text-slate-500">
-                    Fonte: {selectedNews.source || 'Alerta Game'} • {new Date(selectedNews.publishedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  <span className="text-[11px] text-slate-400">
+                    Fonte: <strong className="text-cyan-400 font-semibold">{sourceName}</strong> • {new Date(selectedNews.publishedAt || Date.now()).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 text-slate-400">
                 <span className="flex items-center gap-1">
                   <Eye className="w-4 h-4 text-cyan-400" />
                   {selectedNews.viewsCount || 100}
@@ -133,9 +143,11 @@ export const NewsDetailModal: React.FC = () => {
 
           {/* Formatted Content */}
           <div className="text-slate-300 text-sm sm:text-base leading-relaxed space-y-4 whitespace-pre-line font-normal">
-            <p className="text-slate-200 font-medium text-base sm:text-lg border-l-4 border-cyan-400 pl-4 italic">
-              {selectedNews.summary}
-            </p>
+            {selectedNews.summary && (
+              <p className="text-slate-200 font-medium text-base sm:text-lg border-l-4 border-cyan-400 pl-4 italic bg-slate-950/40 py-2 rounded-r-xl">
+                {selectedNews.summary}
+              </p>
+            )}
             <div>{selectedNews.content}</div>
           </div>
 
@@ -161,9 +173,10 @@ export const NewsDetailModal: React.FC = () => {
                 href={selectedNews.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-2 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors"
+                className="py-2 px-4 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors flex items-center gap-1.5 shadow-md shadow-cyan-500/20"
               >
-                Acessar Fonte Original
+                <span>Acessar Fonte Original</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           )}
