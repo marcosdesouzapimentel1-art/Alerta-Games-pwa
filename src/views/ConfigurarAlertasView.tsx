@@ -16,6 +16,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
+import { updateDocument } from '../services/firestore';
 import {
   ALERT_CATEGORIES,
   notificationService,
@@ -24,6 +26,7 @@ import { AlertCategory, NotificationPreferences } from '../types';
 
 export const ConfigurarAlertasView: React.FC = () => {
   const { showToast, clearOldNotifications } = useApp();
+  const { userProfile, user } = useAuth(); // Pegando o usuário real logado
 
   const [fcmStatus, setFcmStatus] = useState<{
     permission: NotificationPermission;
@@ -34,24 +37,32 @@ export const ConfigurarAlertasView: React.FC = () => {
   });
 
   const [loadingFcm, setLoadingFcm] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+
+  // Estado das preferências de alerta
   const [preferences, setPreferences] = useState<NotificationPreferences>({
-    userId: 'user-guest-default',
+    userId: user?.uid || 'user-guest-default',
     fcmEnabled: false,
     categories: ALERT_CATEGORIES.reduce((acc, cat) => ({ ...acc, [cat]: true }), {} as Record<AlertCategory, boolean>),
     updatedAt: new Date().toISOString(),
   });
 
-  const [isTesting, setIsTesting] = useState(false);
-
+  // Carrega as preferências salvas no perfil do Firestore quando a tela abre
   useEffect(() => {
-    notificationService.loadPreferences().then((prefs) => {
-      setPreferences(prefs);
-    });
+    if (userProfile) {
+      setPreferences((prev) => ({
+        ...prev,
+        userId: userProfile.uid,
+        fcmEnabled: userProfile.fcmEnabled || false,
+        // Se já tiver preferências salvas no banco, usa elas, senão deixa todas ativadas
+        categories: userProfile.alertPreferences || prev.categories, 
+      }));
+    }
 
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setFcmStatus((prev) => ({ ...prev, permission: Notification.permission }));
     }
-  }, []);
+  }, [userProfile]);
 
   const handleRequestPermission = async () => {
     setLoadingFcm(true);
@@ -60,10 +71,15 @@ export const ConfigurarAlertasView: React.FC = () => {
       setFcmStatus(result);
 
       if (result.permission === 'granted') {
-        showToast('Permissão concedida! Token FCM registrado no Firestore. 🔔');
+        showToast('Permissão concedida! Token FCM registrado. 🔔');
+        
         const updatedPrefs = { ...preferences, fcmEnabled: true };
         setPreferences(updatedPrefs);
-        await notificationService.savePreferences(updatedPrefs);
+        
+        // Salva no Firestore que o FCM está ativado para este usuário
+        if (user?.uid) {
+          await updateDocument('users', user.uid, { fcmEnabled: true });
+        }
       } else {
         showToast('Permissão de notificações não foi concedida pelo navegador.');
       }
@@ -80,18 +96,25 @@ export const ConfigurarAlertasView: React.FC = () => {
       [category]: !preferences.categories[category],
     };
 
-    const newPrefs: NotificationPreferences = {
-      ...preferences,
-      categories: updatedCategories,
-    };
-
+    const newPrefs = { ...preferences, categories: updatedCategories };
     setPreferences(newPrefs);
-    await notificationService.savePreferences(newPrefs);
-    showToast(
-      updatedCategories[category]
-        ? `Alertas ativados para: ${category}`
-        : `Alertas desativados para: ${category}`
-    );
+
+    // Gravação direta no documento do usuário no Firestore
+    if (user?.uid) {
+      try {
+        await updateDocument('users', user.uid, {
+          alertPreferences: updatedCategories
+        });
+        showToast(
+          updatedCategories[category]
+            ? `Alertas ativados para: ${category}`
+            : `Alertas desativados para: ${category}`
+        );
+      } catch (error) {
+        console.error("Erro ao salvar preferência:", error);
+        showToast('Erro ao salvar no banco de dados.');
+      }
+    }
   };
 
   const handleToggleAll = async (enable: boolean) => {
@@ -100,14 +123,19 @@ export const ConfigurarAlertasView: React.FC = () => {
       {} as Record<AlertCategory, boolean>
     );
 
-    const newPrefs: NotificationPreferences = {
-      ...preferences,
-      categories: newCategories,
-    };
-
+    const newPrefs = { ...preferences, categories: newCategories };
     setPreferences(newPrefs);
-    await notificationService.savePreferences(newPrefs);
-    showToast(enable ? 'Todas as categorias ativadas!' : 'Todas as categorias desativadas!');
+
+    if (user?.uid) {
+      try {
+        await updateDocument('users', user.uid, {
+          alertPreferences: newCategories
+        });
+        showToast(enable ? 'Todas as categorias ativadas!' : 'Todas as categorias desativadas!');
+      } catch (error) {
+        showToast('Erro ao salvar no banco de dados.');
+      }
+    }
   };
 
   const handleSendTestNotification = async () => {
@@ -295,7 +323,7 @@ export const ConfigurarAlertasView: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={isEnabled}
-                    onChange={() => {}} // Handled by parent container click
+                    onChange={() => {}} 
                     className="sr-only peer"
                   />
                   <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500"></div>
