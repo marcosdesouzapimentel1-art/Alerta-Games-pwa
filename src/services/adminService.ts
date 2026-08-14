@@ -327,7 +327,7 @@ export const sendManualNotificationAdmin = async (
 ): Promise<number> => {
   const users = await getCollection<UserProfile>('users');
   let targetCount = 0;
-  const fcmTokens: string[] = []; // Array para agrupar os tokens de disparo
+  const fcmTokens: string[] = []; 
 
   const notifIdPrefix = `notif_manual_${Date.now()}`;
 
@@ -344,7 +344,6 @@ export const sendManualNotificationAdmin = async (
   for (const u of targets) {
     const notifId = `${notifIdPrefix}_${u.uid}`;
     
-    // Salva a notificação visual na base de dados
     await setDocument(
       'notifications',
       notifId,
@@ -363,7 +362,6 @@ export const sendManualNotificationAdmin = async (
     );
     targetCount++;
 
-    // Extrai o Token FCM do usuário (se existir)
     if ((u as any).fcmToken) {
       fcmTokens.push((u as any).fcmToken);
     }
@@ -389,8 +387,7 @@ export const sendManualNotificationAdmin = async (
   // --- DISPARO REAL DO PUSH VIA NODE.JS (FIREBASE CLOUD FUNCTIONS) ---
   if (fcmTokens.length > 0) {
     try {
-      // Endpoint da sua Cloud Function (você deve atualizar esta URL após o deploy)
-      const CLOUD_FUNCTION_URL = 'https://us-central1-SEU-PROJETO-ID.cloudfunctions.net/dispararPushFCM';
+      const CLOUD_FUNCTION_URL = 'https://southamerica-east1-alerta-game.cloudfunctions.net/dispararPushFCM';
 
       await fetch(CLOUD_FUNCTION_URL, {
         method: 'POST',
