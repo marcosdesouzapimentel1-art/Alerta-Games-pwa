@@ -51,10 +51,10 @@ export const AdminDealsTab: React.FC<AdminDealsTabProps> = ({
   // Form Fields
   const [productTitle, setProductTitle] = useState<string>('');
   const [category, setCategory] = useState<string>('Jogos');
-  const [store, setStore] = useState<string>('PlayStation Store');
-  const [oldPrice, setOldPrice] = useState<number>(349.9);
-  const [currentPrice, setCurrentPrice] = useState<number>(174.9);
-  const [discountPercent, setDiscountPercent] = useState<number>(50);
+  const [store, setStore] = useState<string>('');
+  const [oldPrice, setOldPrice] = useState<number>(0);
+  const [currentPrice, setCurrentPrice] = useState<number>(0);
+  const [discountPercent, setDiscountPercent] = useState<number>(0);
   const [image, setImage] = useState<string>('');
   const [link, setLink] = useState<string>('');
   const [affiliateUrl, setAffiliateUrl] = useState<string>('');
@@ -92,15 +92,15 @@ export const AdminDealsTab: React.FC<AdminDealsTabProps> = ({
 
   const openCreateModal = () => {
     setEditingDeal(null);
-    setProductTitle('DualSense Wireless Controller PS5 - Midnight Black');
-    setCategory('Controles');
-    setStore('Amazon Brasil');
-    setOldPrice(449.9);
-    setCurrentPrice(349.9);
-    setDiscountPercent(22);
-    setImage('https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80');
-    setLink('https://amazon.com.br');
-    setAffiliateUrl('https://amazon.com.br');
+    setProductTitle('');
+    setCategory('Jogos');
+    setStore('');
+    setOldPrice(0);
+    setCurrentPrice(0);
+    setDiscountPercent(0);
+    setImage('');
+    setLink('');
+    setAffiliateUrl('');
     setExpirationDate('2026-12-31');
     setActive(true);
     setIsModalOpen(true);
@@ -488,7 +488,10 @@ export const AdminDealsTab: React.FC<AdminDealsTabProps> = ({
                   type="text"
                   placeholder="https://loja.com/produto?aff=alertagame"
                   value={link}
-                  onChange={(e) => setLink(e.target.value)}
+                  onChange={(e) => {
+                    setLink(e.target.value);
+                    setAffiliateUrl(e.target.value);
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-purple-500"
                 />
               </div>
