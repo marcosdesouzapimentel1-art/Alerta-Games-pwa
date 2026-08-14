@@ -2,79 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Users collection
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Admin Logs
-    match /admin_logs/{logId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Favorites
-    match /favorites/{favoriteId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Push notification tokens
-    match /fcm_tokens/{tokenId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Notifications - permite leitura e gravação para autenticados
-    match /notifications/{notificationId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Notification preferences
-    match /notification_preferences/{prefId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // News
-    match /news/{newsId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    // News sync logs
-    match /news_sync_logs/{logId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    // Coupons
-    match /coupons/{couponId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    // Free Games
-    match /free_games/{gameId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    match /freeGames/{gameId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    // Deals / Promotions
-    match /deals/{dealId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    // Fallback geral
+    // Leitura livre para o app/painel e gravação para usuários logados
     match /{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
 }
