@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Promotion, PromotionCategory } from '../types';
-import { promotionsService } from '../services/promotionsService';
+import { getCollection } from '../services/firestore';
 import { useApp } from '../contexts/AppContext';
 import {
   Tag,
@@ -43,12 +43,30 @@ export const PromocoesView: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortPromoOption>('desconto');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Carrega as promoções reais do Firestore
   useEffect(() => {
-    const unsub = promotionsService.subscribePromotions((list) => {
-      setPromotions(list);
-      setLoading(false);
-    });
-    return () => unsub();
+    let isMounted = true;
+    
+    const fetchRealDeals = async () => {
+      try {
+        const realDeals = await getCollection<Promotion>('deals');
+        if (isMounted) {
+          setPromotions(realDeals);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar ofertas reais:", error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchRealDeals();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Available stores
@@ -199,7 +217,13 @@ export const PromocoesView: React.FC = () => {
       </div>
 
       {/* Promotions Grid */}
-      {filteredPromotions.length > 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-72 rounded-2xl bg-slate-900/50 border border-slate-800 animate-pulse" />
+          ))}
+        </div>
+      ) : filteredPromotions.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredPromotions.map((promo) => {
             const isFav = favoriteDealIds.includes(promo.id);
