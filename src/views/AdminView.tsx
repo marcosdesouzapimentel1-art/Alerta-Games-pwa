@@ -4,6 +4,7 @@ import { useApp } from '../contexts/AppContext';
 import {
   getAdminDashboardStats,
   AdminDashboardStats,
+  syncFreeGamesAdmin,
 } from '../services/adminService';
 import { AdminDashboardTab } from '../components/admin/AdminDashboardTab';
 import { AdminNewsTab } from '../components/admin/AdminNewsTab';
@@ -56,6 +57,20 @@ export const AdminView: React.FC = () => {
   });
 
   const [loadingStats, setLoadingStats] = useState<boolean>(true);
+  const [syncingGames, setSyncingGames] = useState(false);
+
+  const handleSyncFreeGames = async () => {
+    setSyncingGames(true);
+    try {
+      const result = await syncFreeGamesAdmin(adminUserInfo);
+      alert(result.message || 'Jogos grátis sincronizados com sucesso!');
+      loadStats();
+    } catch (error) {
+      alert('Erro ao sincronizar jogos grátis.');
+    } finally {
+      setSyncingGames(false);
+    }
+  };
 
   const loadStats = async () => {
     setLoadingStats(true);
@@ -166,6 +181,16 @@ export const AdminView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-center">
+          {/* Botão de Atualizar Jogos Grátis */}
+          <button
+            onClick={handleSyncFreeGames}
+            disabled={syncingGames}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <Gift className={`w-3.5 h-3.5 ${syncingGames ? 'animate-spin' : ''}`} />
+            <span>{syncingGames ? 'Buscando Epic/Steam...' : 'Sincronizar Jogos Grátis'}</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('inicio')}
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
