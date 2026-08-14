@@ -27,30 +27,19 @@ export const Header: React.FC = React.memo(() => {
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-950/85 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800/80 transition-colors duration-200 text-slate-800 dark:text-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
         
-        {/* Brand Logo - Imagem Customizada */}
+        {/* Brand Logo - Imagem Customizada Emblemática */}
         <div
           onClick={() => setActiveTab('inicio')}
-          className="flex items-center gap-2.5 cursor-pointer group select-none"
+          className="flex items-center gap-2 cursor-pointer group select-none py-1"
         >
           <img
             src={logoImg}
             alt="Alerta Game"
-            className="h-10 w-auto object-contain group-hover:scale-105 transition-transform duration-200"
+            className="h-12 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.4)] group-hover:scale-105 transition-transform duration-200"
           />
-          
-          <div className="flex flex-col hidden xs:flex">
-            <div className="flex items-center gap-1.5">
-              <span className="font-heading font-extrabold text-lg tracking-wider text-slate-900 dark:text-white">
-                ALERTA GAME
-              </span>
-              <span className="text-[10px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 hidden sm:inline-block">
-                PWA
-              </span>
-            </div>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide -mt-1">
-              Notícias & Ofertas Gamer
-            </span>
-          </div>
+          <span className="text-[10px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 hidden sm:inline-block ml-1">
+            PWA
+          </span>
         </div>
 
         {/* Offline Badge */}
