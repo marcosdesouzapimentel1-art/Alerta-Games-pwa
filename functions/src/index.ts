@@ -4,13 +4,18 @@ import { onRequest } from 'firebase-functions/v2/https';
 import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 import * as admin from 'firebase-admin';
+import 'firebase-admin/messaging'; // Importa explicitamente o módulo de mensagens
 
 const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
 
-// Inicializa o admin do firebase se já não estiver inicializado
-if (!admin.apps.length) {
-  admin.initializeApp();
+// Inicializa o admin do firebase de forma segura
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+} catch (e) {
+  console.error("Erro ao inicializar admin:", e);
 }
 
 /**
