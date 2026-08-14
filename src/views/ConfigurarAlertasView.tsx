@@ -26,7 +26,7 @@ import { AlertCategory, NotificationPreferences } from '../types';
 
 export const ConfigurarAlertasView: React.FC = () => {
   const { showToast, clearOldNotifications } = useApp();
-  const { userProfile, user } = useAuth(); // Pegando o usuário real logado
+  const { userProfile, user } = useAuth(); 
 
   const [fcmStatus, setFcmStatus] = useState<{
     permission: NotificationPermission;
@@ -39,7 +39,6 @@ export const ConfigurarAlertasView: React.FC = () => {
   const [loadingFcm, setLoadingFcm] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
-  // Estado das preferências de alerta
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     userId: user?.uid || 'user-guest-default',
     fcmEnabled: false,
@@ -47,14 +46,12 @@ export const ConfigurarAlertasView: React.FC = () => {
     updatedAt: new Date().toISOString(),
   });
 
-  // Carrega as preferências salvas no perfil do Firestore quando a tela abre
   useEffect(() => {
     if (userProfile) {
       setPreferences((prev) => ({
         ...prev,
         userId: userProfile.uid,
         fcmEnabled: userProfile.fcmEnabled || false,
-        // Se já tiver preferências salvas no banco, usa elas, senão deixa todas ativadas
         categories: userProfile.alertPreferences || prev.categories, 
       }));
     }
@@ -76,9 +73,12 @@ export const ConfigurarAlertasView: React.FC = () => {
         const updatedPrefs = { ...preferences, fcmEnabled: true };
         setPreferences(updatedPrefs);
         
-        // Salva no Firestore que o FCM está ativado para este usuário
+        // SALVAMENTO ATUALIZADO: Agora enviamos o fcmToken para o banco de dados!
         if (user?.uid) {
-          await updateDocument('users', user.uid, { fcmEnabled: true });
+          await updateDocument('users', user.uid, { 
+            fcmEnabled: true,
+            fcmToken: result.token 
+          });
         }
       } else {
         showToast('Permissão de notificações não foi concedida pelo navegador.');
@@ -99,7 +99,6 @@ export const ConfigurarAlertasView: React.FC = () => {
     const newPrefs = { ...preferences, categories: updatedCategories };
     setPreferences(newPrefs);
 
-    // Gravação direta no documento do usuário no Firestore
     if (user?.uid) {
       try {
         await updateDocument('users', user.uid, {
