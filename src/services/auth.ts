@@ -26,22 +26,24 @@ export const syncUserProfile = async (user: User, customDisplayName?: string): P
     const existing = await getDocument<UserProfile>('users', user.uid);
 
     if (existing) {
-      // If user profile exists, update displayName or photoURL if changed, keeping existing role (defaulting to 'user')
+      // If user profile exists, preserve customized data from Firestore over default auth tokens
       const userRole = existing.role || 'user';
 
       const updatedProfile: UserProfile = {
         ...existing,
         uid: user.uid,
         email: user.email || existing.email || '',
-        displayName: customDisplayName || user.displayName || existing.displayName || 'Gamer',
-        photoURL: user.photoURL || existing.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
+        // Prioriza o nome salvo no Firestore, depois customDisplayName, depois Auth, depois padrão
+        displayName: existing.displayName || customDisplayName || user.displayName || 'Gamer',
+        // Prioriza a foto salva no Firestore (como upload da galeria/Base64), mantendo o Auth como fallback
+        photoURL: existing.photoURL || user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
         role: userRole,
         gamePreferences: existing.gamePreferences || ['PlayStation', 'PC', 'GTA 6', 'Steam', 'Game Pass'],
         favoriteCategories: existing.favoriteCategories || ['Todas'],
         // Compatibility properties
-        name: customDisplayName || user.displayName || existing.displayName || 'Gamer',
+        name: existing.name || customDisplayName || user.displayName || 'Gamer',
         gamerTag: existing.gamerTag || `Gamer#${user.uid.slice(0, 4)}`,
-        avatarUrl: user.photoURL || existing.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
+        avatarUrl: existing.avatarUrl || existing.photoURL || user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80',
         xpLevel: existing.xpLevel || 1,
         title: existing.title || (userRole === 'admin' ? 'Administrador Alerta Game' : 'Iniciante Gamer'),
         joinedDate: existing.joinedDate || new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
@@ -194,7 +196,14 @@ export const updateUserProfileData = async (
   data: Partial<UserProfile>
 ): Promise<void> => {
   try {
-    await updateDocument('users', uid, data);
+    // Garante que atualiza tanto photoURL quanto avatarUrl e name no Firestore
+    const payload = {
+      ...data,
+      ...(data.photoURL ? { avatarUrl: data.photoURL } : {}),
+      ...(data.displayName ? { name: data.displayName } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    await updateDocument('users', uid, payload);
   } catch (error) {
     console.error('Error updating user profile in Firestore:', error);
     throw error;
