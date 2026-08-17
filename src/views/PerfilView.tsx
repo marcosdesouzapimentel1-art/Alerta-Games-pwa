@@ -5,7 +5,7 @@ import { usePWA } from '../contexts/PWAContext';
 import { AuthCard } from '../components/AuthCard';
 import { MeusInteresses } from '../components/MeusInteresses';
 import { InstallModal } from '../components/InstallModal';
-import { mockUserProfile, mockNews, mockDeals, mockReleases } from '../data/mockData';
+import { mockNews, mockDeals, mockReleases } from '../data/mockData';
 import { mockCoupons } from '../data/mockCoupons';
 import {
   ShieldCheck,
@@ -25,7 +25,9 @@ import {
   Calendar,
   ExternalLink,
   Edit2,
-  Check
+  Check,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export const PerfilView: React.FC = () => {
@@ -58,6 +60,25 @@ export const PerfilView: React.FC = () => {
   const totalFavoritesCount =
     favoriteNewsIds.length + favoriteDealIds.length + favoriteCouponIds.length + trackedReleaseIds.length;
 
+  // Função para lidar com upload de imagem direto da galeria do celular ou PC
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('A imagem é muito grande! Escolha uma com menos de 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setEditPhoto(base64String);
+      showToast('Imagem carregada com sucesso!');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveProfileEdit = async () => {
     if (!editName.trim()) return;
     try {
@@ -68,7 +89,7 @@ export const PerfilView: React.FC = () => {
         avatarUrl: editPhoto.trim() || undefined,
       });
       setIsEditing(false);
-      showToast('Perfil atualizado com sucesso! 🎮');
+      showToast('Perfil atualizado e salvo no banco de dados! 🎮');
     } catch (err) {
       showToast('Erro ao atualizar perfil.');
     }
@@ -142,7 +163,7 @@ export const PerfilView: React.FC = () => {
                           setEditPhoto(userProfile?.photoURL || userProfile?.avatarUrl || '');
                           setIsEditing(true);
                         }}
-                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition-colors"
+                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-cyan-400 transition-colors cursor-pointer"
                         title="Editar nome ou foto"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -189,43 +210,65 @@ export const PerfilView: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                /* Edit Profile Form */
-                <div className="space-y-3 bg-slate-950/80 p-4 rounded-2xl border border-slate-800 text-left">
-                  <h4 className="text-xs font-bold text-cyan-400 uppercase font-mono">Editar Perfil Gamer</h4>
-                  <div className="space-y-2">
+                /* Edit Profile Form com Upload Real de Imagem da Galeria */
+                <div className="space-y-3 bg-slate-950/90 p-4 rounded-2xl border border-cyan-500/30 text-left shadow-xl">
+                  <h4 className="text-xs font-bold text-cyan-400 uppercase font-mono flex items-center gap-1.5">
+                    <Edit2 className="w-3.5 h-3.5" /> Editar Perfil & Foto
+                  </h4>
+                  
+                  <div className="space-y-3">
                     <div>
                       <label className="text-[11px] text-slate-400 block mb-1">Nome / Apelido</label>
                       <input
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-cyan-500"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-cyan-500"
                       />
                     </div>
-                    <div>
-                      <label className="text-[11px] text-slate-400 block mb-1">URL do Avatar / Foto</label>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] text-slate-400 block">Avatar / Foto de Perfil</label>
+                      
+                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                        {/* Botão de carregar da galeria/dispositivo */}
+                        <label className="w-full sm:w-auto px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all">
+                          <Upload className="w-4 h-4" />
+                          <span>Escolher da Galeria / PC</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        
+                        <span className="text-[10px] text-slate-500">ou cole o link da imagem abaixo:</span>
+                      </div>
+
                       <input
                         type="text"
                         value={editPhoto}
                         onChange={(e) => setEditPhoto(e.target.value)}
                         placeholder="https://..."
-                        className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-cyan-500"
+                        className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-cyan-500 font-mono text-[11px]"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2 pt-1">
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
                     <button
                       onClick={() => setIsEditing(false)}
-                      className="px-3 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold"
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700 cursor-pointer"
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={handleSaveProfileEdit}
-                      className="px-4 py-1 rounded-lg bg-cyan-500 text-slate-950 text-xs font-black flex items-center gap-1"
+                      className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-cyan-500/20 cursor-pointer"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Salvar</span>
+                      <Check className="w-4 h-4" />
+                      <span>Salvar Alterações</span>
                     </button>
                   </div>
                 </div>
@@ -284,10 +327,10 @@ export const PerfilView: React.FC = () => {
         </div>
       </div>
 
-      {/* Personalização - Meus Interesses Component */}
+      {/* Personalização - Meus Interesses Component (Agora integrado e funcional) */}
       <MeusInteresses />
 
-      {/* Perfil Gamer: Itens Salvos & Acompanhados directly in Profile */}
+      {/* Perfil Gamer: Itens Salvos & Acompanhados */}
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h2 className="text-lg font-black font-heading text-slate-100 flex items-center gap-2">
@@ -459,31 +502,6 @@ export const PerfilView: React.FC = () => {
               <p className="text-xs text-slate-500 text-center py-8">Nenhum jogo acompanhado ainda.</p>
             )
           )}
-        </div>
-      </div>
-
-      {/* Badges & Achievements */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold font-heading text-slate-100 flex items-center gap-2">
-          <Award className="w-5 h-5 text-amber-400" />
-          Conquistas Gamer ({mockUserProfile.badges.length})
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {mockUserProfile.badges.map((badge) => (
-            <div
-              key={badge.id}
-              className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex items-center gap-3.5"
-            >
-              <div className="p-3 rounded-2xl bg-slate-800/80 shrink-0">
-                {getBadgeIcon(badge.icon)}
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-slate-100">{badge.name}</h4>
-                <p className="text-xs text-slate-400">{badge.description}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
