@@ -25,28 +25,25 @@ export const NewsDetailModal: React.FC = () => {
 
   const imageSrc = selectedNews.image || selectedNews.imageUrl || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80';
   
-  // Nome do autor ou Redação Alerta Game
   const authorName = typeof selectedNews.author === 'string' 
     ? (selectedNews.author.includes('Mateus') ? 'Redação Alerta Game' : selectedNews.author)
     : selectedNews.author?.name || 'Redação Alerta Game';
 
-  // Usa o novo logo neon oficial caso seja o Alerta Game ou não tenha avatar
   const authorAvatar = (typeof selectedNews.author === 'object' && selectedNews.author?.avatarUrl && !selectedNews.author.avatarUrl.includes('unsplash'))
     ? selectedNews.author.avatarUrl
     : logoImg;
 
-  // Fonte da notícia
   const sourceName = selectedNews.source || 'Alerta Game';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-3xl min-h-screen sm:min-h-0 sm:max-h-[90vh] bg-slate-950 sm:bg-slate-900 border-0 sm:border border-slate-800 sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scaleUp">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-hidden">
+      <div className="relative w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl bg-slate-950 sm:bg-slate-900 border-0 sm:border border-slate-800 sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scaleUp">
         
-        {/* Sticky Modal Top Bar */}
-        <div className="sticky top-0 z-20 bg-slate-950/90 backdrop-blur-md px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        {/* Top Bar Fixa (Garantindo comportamento fluido no iPhone com absolute/fixed interno ou sticky bem ancorado) */}
+        <div className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
           <button
             onClick={() => setSelectedNews(null)}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-slate-800/80 cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white px-3 py-2 rounded-xl bg-slate-800/90 cursor-pointer transition-colors active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar</span>
@@ -55,10 +52,10 @@ export const NewsDetailModal: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => toggleFavoriteNews(selectedNews.id)}
-              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                 isFavorited
                   ? 'bg-rose-500 text-white border-rose-400 shadow-sm shadow-rose-500/20'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:text-white'
+                  : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:text-white'
               }`}
               title="Salvar Favorito"
             >
@@ -67,7 +64,7 @@ export const NewsDetailModal: React.FC = () => {
 
             <button
               onClick={handleShare}
-              className="p-2 rounded-xl bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-colors"
+              className="p-2.5 rounded-xl bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 cursor-pointer transition-colors"
               title="Compartilhar"
             >
               <Share2 className="w-4 h-4" />
@@ -75,15 +72,15 @@ export const NewsDetailModal: React.FC = () => {
 
             <button
               onClick={() => setSelectedNews(null)}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
+              className="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6">
+        {/* Corpo com rolagem independente */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 overscroll-contain">
           
           {/* Header Cover */}
           <div className="relative h-60 sm:h-80 w-full rounded-2xl overflow-hidden bg-slate-950">
@@ -167,7 +164,7 @@ export const NewsDetailModal: React.FC = () => {
 
           {/* Source Link */}
           {selectedNews.url && (
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            <div className="pt-4 border-t border-slate-800 flex items-center justify-between pb-6">
               <span className="text-xs text-slate-400">Ver matéria original na íntegra:</span>
               <a
                 href={selectedNews.url}
