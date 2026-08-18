@@ -5,6 +5,7 @@ import cors from 'cors';
 import { runNewsSync } from './services/newsSync';
 import { runFreeGamesSync } from './services/freeGamesSync';
 import { getMessaging } from 'firebase-admin/messaging';
+import rakutenService from './rakutenService';
 
 const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
@@ -154,6 +155,49 @@ export const dispararPushFCM = onRequest(
       } catch (error: any) {
         console.error('Erro ao disparar push via FCM:', error);
         res.status(500).json({ success: false, error: 'Erro interno no servidor Firebase ao enviar push.' });
+      }
+    });
+  }
+);
+
+/**
+ * Função HTTP Manual para Sincronizar Links da Rakuten (Hype Games)
+ */
+export const syncRakutenLinksManual = onRequest(
+  {
+    region: REGION,
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    cors: true,
+    secrets: ['RAKUTEN_TOKEN']
+  },
+  (req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST' && req.method !== 'GET') {
+        res.status(405).json({ success: false, message: 'Método não permitido.' });
+        return;
+      }
+
+      try {
+        console.log('[HTTP Manual] Sincronização de links da Rakuten acionada...');
+        
+        const advertiserId = '53304'; // Hype Games
+        const apiToken = process.env.RAKUTEN_TOKEN || '';
+
+        const result = await rakutenService.getTextLinks(advertiserId, apiToken);
+
+        res.status(200).json({
+          success: true,
+          message: 'Links da Rakuten sincronizados com sucesso!',
+          data: result
+        });
+      } catch (error: any) {
+        console.error("Erro na sincronização da Rakuten:", error);
+        res.status(500).json({
+          success: false,
+          message: 'Erro ao executar sincronização da Rakuten',
+          error: error.message
+        });
       }
     });
   }
