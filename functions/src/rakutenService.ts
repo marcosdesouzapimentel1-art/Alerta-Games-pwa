@@ -7,7 +7,8 @@ class RakutenService {
     private baseURL: string;
 
     constructor() {
-        this.baseURL = 'https://api.linksynergy.com';
+        // Ajustado para o domínio correto do Link Locator da Rakuten
+        this.baseURL = 'https://api.linksynergy.com/linklocator/1.0';
     }
 
     /**
@@ -23,10 +24,10 @@ class RakutenService {
         const endDate = '2026-12-30';
         const page = '1';
 
-        const endpoint = `${this.baseURL}/linklocator/1.0/getTextLinks/${advertiserId}/${categoryId}/${startDate}/${endDate}/0/${page}`;
+        // URL corrigida incluindo o endpoint padrão esperado pela API
+        const endpoint = `${this.baseURL}/${advertiserId}/${categoryId}/${startDate}/${endDate}/0/${page}`;
 
         try {
-            // A Rakuten geralmente utiliza autenticação via Authorization com o token direto ou token de serviço web
             const response = await axios.get(endpoint, {
                 headers: {
                     'Authorization': `${apiToken.trim()}`,
