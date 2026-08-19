@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 /**
- * Serviço modular para gerenciar as APIs da Rakuten Advertising com autenticação segura.
+ * Serviço modular para gerenciar as APIs da Rakuten Advertising.
  */
 class RakutenService {
     private baseURL: string;
@@ -26,9 +26,10 @@ class RakutenService {
         const endpoint = `${this.baseURL}/linklocator/1.0/getTextLinks/${advertiserId}/${categoryId}/${startDate}/${endDate}/0/${page}`;
 
         try {
+            // A Rakuten geralmente utiliza autenticação via Authorization com o token direto ou token de serviço web
             const response = await axios.get(endpoint, {
                 headers: {
-                    'Authorization': `Bearer ${apiToken.trim()}`,
+                    'Authorization': `${apiToken.trim()}`,
                     'Accept': 'application/json, application/xml, text/xml'
                 },
                 timeout: 10000 
@@ -36,7 +37,6 @@ class RakutenService {
 
             return response.data;
         } catch (error: any) {
-            // Captura detalhada do erro retornado pela Rakuten para facilitar o diagnóstico
             const errorDetails = error.response?.data || error.message;
             console.error(`Erro detalhado Rakuten (Advertiser: ${advertiserId}):`, JSON.stringify(errorDetails));
             
