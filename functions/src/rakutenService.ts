@@ -12,13 +12,14 @@ class RakutenService {
             throw new Error('Parâmetros ausentes: advertiserId e apiToken são obrigatórios.');
         }
 
-        // Passando o token diretamente como parâmetro na URL, que é o padrão de muitas APIs da Rakuten
-        const endpoint = `${this.baseURL}/linklocator/1.0/getMerchByID/${advertiserId}?token=${apiToken.trim()}`;
+        // Endpoint oficial do Link Locator para buscar dados do anunciante aceitando Bearer Token
+        const endpoint = `${this.baseURL}/linklocator/1.0/getMerchByID/${advertiserId}`;
 
         try {
             const response = await axios.get(endpoint, {
                 headers: {
-                    'Accept': 'application/json, application/xml, text/xml'
+                    'Authorization': `Bearer ${apiToken.trim()}`,
+                    'Accept': 'application/xml, text/xml, application/json'
                 },
                 timeout: 10000 
             });
