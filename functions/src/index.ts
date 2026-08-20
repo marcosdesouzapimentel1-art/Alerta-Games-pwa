@@ -1,3 +1,4 @@
+import { runRakutenSync } from './services/rakutenSync';
 import { db } from './lib/firebase';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
@@ -179,16 +180,14 @@ export const syncRakutenLinksManual = onRequest(
       }
 
       try {
-        console.log('[HTTP Manual] Sincronização de links da Rakuten acionada...');
-        
-        const advertiserId = '53304'; // Hype Games
-        const apiToken = process.env.RAKUTEN_TOKEN || '';
+        console.log('[HTTP Manual] Sincronização e salvamento de links da Rakuten acionada...');
 
-        const result = await rakutenService.getTextLinks(advertiserId, apiToken);
+        // Executa o serviço que busca da API e já salva no Firestore
+        const result = await runRakutenSync();
 
         res.status(200).json({
           success: true,
-          message: 'Links da Rakuten sincronizados com sucesso!',
+          message: 'Links da Rakuten sincronizados e salvos no Firestore com sucesso!',
           data: result
         });
       } catch (error: any) {
