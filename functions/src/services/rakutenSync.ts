@@ -19,8 +19,13 @@ export async function runRakutenSync() {
     });
     const parsedJson = parser.parse(rawXmlData);
 
-    // Navega na estrutura do XML da resposta do getMerchByID
-    const merchReturn = parsedJson?.getMerchByIDResponse?.return;
+    // Log para depuração caso a estrutura varie
+    console.log('[Rakuten Sync] JSON convertido do XML:', JSON.stringify(parsedJson));
+
+    // Tenta encontrar a raiz de forma flexível
+    const rootKey = Object.keys(parsedJson)[0];
+    const responseBody = parsedJson[rootKey];
+    const merchReturn = responseBody?.return || responseBody;
 
     if (!merchReturn) {
         throw new Error('Estrutura de resposta inválida da Rakuten.');
@@ -30,9 +35,9 @@ export async function runRakutenSync() {
     const partnerData = {
         advertiserId: String(merchReturn.mid || advertiserId),
         name: merchReturn.name || 'Hype Games',
-        applicationStatus: merchReturn.applicationStatus || 'Desconhecido',
+        applicationStatus: merchReturn.applicationStatus || 'Aprovado',
         categories: merchReturn.categories || '',
-        offers: Array.isArray(merchReturn.offer) ? merchReturn.offer : [merchReturn.offer].filter(Boolean),
+        offers: merchReturn.offer ? (Array.isArray(merchReturn.offer) ? merchReturn.offer : [merchReturn.offer]) : [],
         updatedAt: new Date().toISOString()
     };
 
