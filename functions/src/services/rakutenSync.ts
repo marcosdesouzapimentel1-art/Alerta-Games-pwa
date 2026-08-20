@@ -19,34 +19,22 @@ export async function runRakutenSync() {
     });
     const parsedJson = parser.parse(rawXmlData);
 
-    // Log para depuração caso a estrutura varie
-    console.log('[Rakuten Sync] JSON convertido do XML:', JSON.stringify(parsedJson));
+    console.log('[Rakuten Sync] Resposta bruta convertida:', JSON.stringify(parsedJson));
 
-    // Tenta encontrar a raiz de forma flexível
-    const rootKey = Object.keys(parsedJson)[0];
-    const responseBody = parsedJson[rootKey];
-    const merchReturn = responseBody?.return || responseBody;
-
-    if (!merchReturn) {
-        throw new Error('Estrutura de resposta inválida da Rakuten.');
-    }
-
-    // 3. Prepara os dados para salvar no Firestore
+    // 3. Prepara os dados de forma segura (salva o JSON convertido caso a estrutura varie)
     const partnerData = {
-        advertiserId: String(merchReturn.mid || advertiserId),
-        name: merchReturn.name || 'Hype Games',
-        applicationStatus: merchReturn.applicationStatus || 'Aprovado',
-        categories: merchReturn.categories || '',
-        offers: merchReturn.offer ? (Array.isArray(merchReturn.offer) ? merchReturn.offer : [merchReturn.offer]) : [],
+        advertiserId: String(advertiserId),
+        name: 'Hype Games',
+        rawResponse: parsedJson, // Salva o objeto completo para inspecionar se necessário
         updatedAt: new Date().toISOString()
     };
 
-    // 4. Salva/Atualiza no Firestore na coleção 'affiliates_rakuten'
+    // 4. Salva no Firestore na coleção 'affiliates_rakuten'
     const docRef = db.collection('affiliates_rakuten').doc(partnerData.advertiserId);
     await docRef.set(partnerData, { merge: true });
 
     const durationMs = Date.now() - startTime;
-    console.log(`[Rakuten Sync] Sincronizado com sucesso em ${durationMs}ms`);
+    console.log(`[Rakuten Sync] Sincronizado e salvo com sucesso em ${durationMs}ms`);
 
     return {
         success: true,
