@@ -1,3 +1,4 @@
+import { runRakutenCouponsSync } from './services/rakutenCouponsSync';
 import { runRakutenSync } from './services/rakutenSync';
 import { db } from './lib/firebase';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
@@ -195,6 +196,44 @@ export const syncRakutenLinksManual = onRequest(
         res.status(500).json({
           success: false,
           message: 'Erro ao executar sincronização da Rakuten',
+          error: error.message
+        });
+      }
+    });
+  }
+);
+/**
+ * Função HTTP Manual para Sincronizar Cupons da Rakuten
+ */
+export const syncRakutenCouponsManual = onRequest(
+  {
+    region: REGION,
+    timeoutSeconds: 60,
+    memory: '256MiB',
+    cors: true,
+    secrets: ['RAKUTEN_TOKEN']
+  },
+  (req, res) => {
+    return corsHandler(req, res, async () => {
+      if (req.method !== 'POST' && req.method !== 'GET') {
+        res.status(405).json({ success: false, message: 'Método não permitido.' });
+        return;
+      }
+
+      try {
+        console.log('[HTTP Manual] Sincronização de cupons da Rakuten acionada...');
+        const result = await runRakutenCouponsSync();
+
+        res.status(200).json({
+          success: true,
+          message: 'Cupons da Rakuten sincronizados com sucesso!',
+          data: result
+        });
+      } catch (error: any) {
+        console.error("Erro na sincronização de cupons:", error);
+        res.status(500).json({
+          success: false,
+          message: 'Erro ao executar sincronização de cupons',
           error: error.message
         });
       }
