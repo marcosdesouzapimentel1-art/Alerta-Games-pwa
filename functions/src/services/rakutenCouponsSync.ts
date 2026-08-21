@@ -7,10 +7,9 @@ export async function runRakutenCouponsSync() {
     const apiToken = process.env.RAKUTEN_TOKEN || '';
     const advertiserId = '53304'; // Hype Games
 
-    console.log('[Rakuten Coupons API] Buscando cupons oficiais no endpoint /coupon/1.0...');
+    console.log('[Rakuten Coupons Sync] Sincronizando cupons oficiais...');
 
     try {
-        // Endpoint oficial documentado no painel da Rakuten
         const endpoint = `https://api.linksynergy.com/coupon/1.0?mid=${advertiserId}`;
         
         const response = await axios.get(endpoint, {
@@ -40,16 +39,20 @@ export async function runRakutenCouponsSync() {
         for (const item of couponsList) {
             const couponData = {
                 id: String(item.couponId || item.offerId || `coupon-${Date.now()}`),
-                title: item.couponTitle || item.offerName || 'Cupom Oficial Hype Games',
-                description: item.couponDescription || item.description || 'Desconto oficial sincronizado da Rakuten.',
-                store: 'Hype Games',
-                discount: item.discount || 'Desconto ativo',
+                title: item.couponTitle || item.offerName || 'Desconto Exclusivo Hype Games',
+                description: item.couponDescription || item.description || 'Aproveite o desconto especial na parceira.',
+                storeName: 'Hype Games',
+                storeLogoUrl: 'https://images.tcdn.com.br/img/img_prod/1049965/logo_1658933220_1.png', // Logo padrão compatível
+                discountValueText: item.discount || '1.5% OFF',
+                discountPercent: 1.5,
                 code: item.couponCode || 'AUTOMATICO',
                 category: 'Jogos',
-                affiliateLink: item.clickUrl || item.url || 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
-                expiresAt: item.expirationDate || '2026-12-31',
+                affiliateUrl: item.clickUrl || item.url || 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
+                validUntil: item.expirationDate || '2026-12-31',
+                verifiedToday: true,
+                isExclusive: true,
+                isExpiringToday: false,
                 isActive: true,
-                status: 'ativo',
                 updatedAt: new Date().toISOString()
             };
 
@@ -57,23 +60,27 @@ export async function runRakutenCouponsSync() {
             syncedCount++;
         }
 
-        // Fallback robusto caso o endpoint retorne vazio no momento
+        // Fallback robusto alinhado com o layout do CupomCard
         if (syncedCount === 0) {
-            const fallbackCoupon = {
+            const defaultCoupon = {
                 id: 'hype-games-base-53304',
-                title: 'Comissão Base 1.5% - Hype Games',
+                title: 'Comissão Base e Desconto em Jogos - Hype Games',
                 description: 'Aproveite o catálogo completo da Hype Games com comissão e ofertas ativas.',
-                store: 'Hype Games',
-                discount: '1.5% OFF',
+                storeName: 'Hype Games',
+                storeLogoUrl: 'https://images.tcdn.com.br/img/img_prod/1049965/logo_1658933220_1.png',
+                discountValueText: '1.5% OFF',
+                discountPercent: 1.5,
                 code: 'AUTOMATICO',
                 category: 'Jogos',
-                affiliateLink: 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
-                expiresAt: '2026-12-31',
+                affiliateUrl: 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
+                validUntil: '2026-12-31',
+                verifiedToday: true,
+                isExclusive: true,
+                isExpiringToday: false,
                 isActive: true,
-                status: 'ativo',
                 updatedAt: new Date().toISOString()
             };
-            await db.collection('coupons').doc(fallbackCoupon.id).set(fallbackCoupon, { merge: true });
+            await db.collection('coupons').doc(defaultCoupon.id).set(defaultCoupon, { merge: true });
             syncedCount++;
         }
 
