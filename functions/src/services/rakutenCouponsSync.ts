@@ -1,83 +1,68 @@
 import { db } from '../lib/firebase';
-import rakutenService from '../rakutenService';
 import { XMLParser } from 'fast-xml-parser';
+import axios from 'axios';
 
 export async function runRakutenCouponsSync() {
     const startTime = Date.now();
-    const advertiserId = '53304'; // Hype Games
     const apiToken = process.env.RAKUTEN_TOKEN || '';
+    const advertiserId = '53304'; // Hype Games
 
-    console.log('[Rakuten Sync] Sincronizando cupons e ofertas via API segura...');
+    console.log('[Rakuten Coupons API] Buscando cupons oficiais no endpoint /coupon/1.0...');
 
     try {
-        // Usa o mesmo serviço de texto/links que já sabemos que autentica e funciona perfeitamente
-        const rawXmlData = await rakutenService.getTextLinks(advertiserId, apiToken);
+        // Endpoint oficial documentado no painel da Rakuten
+        const endpoint = `https://api.linksynergy.com/coupon/1.0?mid=${advertiserId}`;
+        
+        const response = await axios.get(endpoint, {
+            headers: {
+                'Authorization': `Bearer ${apiToken.trim()}`,
+                'Accept': 'application/xml, text/xml, application/json'
+            },
+            timeout: 10000
+        });
 
         const parser = new XMLParser({
             ignoreAttributes: false,
             attributeNamePrefix: "@_"
         });
-        const parsedJson = parser.parse(rawXmlData);
+        const parsedJson = parser.parse(response.data);
 
         const rootKey = Object.keys(parsedJson)[0];
         const responseBody = parsedJson[rootKey];
-        const merchReturn = responseBody?.return || responseBody;
+        let couponsList = responseBody?.coupon || responseBody?.return || [];
 
-        let offersList = merchReturn?.offer ? (Array.isArray(merchReturn.offer) ? merchReturn.offer : [merchReturn.offer]) : [];
-
-        let couponsCount = 0;
-        let offersCount = 0;
-
-        // Processa as ofertas reais vindas da API da Rakuten para a Hype Games
-        for (const item of offersList) {
-            const offerId = String(item.offerId || `offer-${Date.now()}`);
-            const offerName = item.offerName || 'Oferta Oficial Hype Games';
-            
-            // Se o nome contiver termos de cupom, vai para cupons; caso contrário, vai para ofertas
-            const isCoupon = offerName.toLowerCase().includes('cupom') || offerName.toLowerCase().includes('desconto base');
-
-            if (isCoupon) {
-                const couponData = {
-                    id: offerId,
-                    title: offerName,
-                    description: 'Cupom e termos oficiais sincronizados da Hype Games.',
-                    store: 'Hype Games',
-                    discount: item.commissionTerms || '1.5% OFF',
-                    code: 'AUTOMATICO',
-                    category: 'Jogos',
-                    affiliateLink: 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
-                    expiresAt: '2026-12-31',
-                    isActive: true,
-                    updatedAt: new Date().toISOString()
-                };
-                await db.collection('coupons').doc(couponData.id).set(couponData, { merge: true });
-                couponsCount++;
-            } else {
-                const productOffer = {
-                    id: offerId,
-                    title: offerName,
-                    description: `Termos da oferta: ${item.commissionTerms || 'Parceria oficial Hype Games'}`,
-                    store: 'Hype Games',
-                    category: 'Jogos',
-                    discount: 'Ativo',
-                    price: 150.00,
-                    bannerUrl: 'https://images.tcdn.com.br/img/img_prod/1049965/cartao_presente_playstation_store_450_reais_digital_1519_1_72d5c363d3c80a8bf8e62118335359aa.jpg',
-                    affiliateLink: 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
-                    expiresAt: '2026-12-31',
-                    isActive: true,
-                    updatedAt: new Date().toISOString()
-                };
-                await db.collection('offers').doc(productOffer.id).set(productOffer, { merge: true });
-                offersCount++;
-            }
+        if (!Array.isArray(couponsList)) {
+            couponsList = couponsList ? [couponsList] : [];
         }
 
-        // Garante o cupom e oferta padrão oficiais caso venha vazio
-        if (couponsCount === 0 && offersCount === 0) {
-            const defaultCoupon = {
+        let syncedCount = 0;
+
+        for (const item of couponsList) {
+            const couponData = {
+                id: String(item.couponId || item.offerId || `coupon-${Date.now()}`),
+                title: item.couponTitle || item.offerName || 'Cupom Oficial Hype Games',
+                description: item.couponDescription || item.description || 'Desconto oficial sincronizado da Rakuten.',
+                store: 'Hype Games',
+                discount: item.discount || 'Desconto ativo',
+                code: item.couponCode || 'AUTOMATICO',
+                category: 'Jogos',
+                affiliateLink: item.clickUrl || item.url || 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
+                expiresAt: item.expirationDate || '2026-12-31',
+                isActive: true,
+                status: 'ativo',
+                updatedAt: new Date().toISOString()
+            };
+
+            await db.collection('coupons').doc(couponData.id).set(couponData, { merge: true });
+            syncedCount++;
+        }
+
+        // Fallback robusto caso o endpoint retorne vazio no momento
+        if (syncedCount === 0) {
+            const fallbackCoupon = {
                 id: 'hype-games-base-53304',
                 title: 'Comissão Base 1.5% - Hype Games',
-                description: 'Aproveite o catálogo completo da Hype Games com comissão e ofertas ativas[cite: 1].',
+                description: 'Aproveite o catálogo completo da Hype Games com comissão e ofertas ativas.',
                 store: 'Hype Games',
                 discount: '1.5% OFF',
                 code: 'AUTOMATICO',
@@ -85,24 +70,24 @@ export async function runRakutenCouponsSync() {
                 affiliateLink: 'https://click.linksynergy.com/link?id=bniSlSX635s&offerid=2094715.53304485326432059303732&type=2&murl=https%3a%2f%2fhype.games',
                 expiresAt: '2026-12-31',
                 isActive: true,
+                status: 'ativo',
                 updatedAt: new Date().toISOString()
             };
-            await db.collection('coupons').doc(defaultCoupon.id).set(defaultCoupon, { merge: true });
-            couponsCount++;
+            await db.collection('coupons').doc(fallbackCoupon.id).set(fallbackCoupon, { merge: true });
+            syncedCount++;
         }
 
         const durationMs = Date.now() - startTime;
-        console.log(`[Rakuten Sync] Sincronização concluída com sucesso em ${durationMs}ms`);
+        console.log(`[Rakuten Coupons API] Sincronização concluída com sucesso: ${syncedCount} cupons.`);
 
         return {
             success: true,
-            couponsSynced: couponsCount,
-            offersSynced: offersCount,
+            couponsSynced: syncedCount,
             durationMs
         };
 
     } catch (error: any) {
-        console.error('[Rakuten Sync] Erro:', error.message);
-        throw new Error(`Erro ao sincronizar com a Rakuten: ${error.message}`);
+        console.error('[Rakuten Coupons API] Erro:', error.response?.data || error.message);
+        throw new Error(`Erro ao buscar cupons da Rakuten: ${error.message}`);
     }
 }
