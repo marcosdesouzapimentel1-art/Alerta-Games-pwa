@@ -145,7 +145,7 @@ export const DealDetailModal: React.FC = () => {
             </button>
 
             <a
-              href={selectedDeal.dealUrl}
+              href={selectedDeal.affiliateUrl || selectedDeal.dealUrl || selectedDeal.link}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 py-3 px-4 rounded-xl text-sm font-extrabold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
