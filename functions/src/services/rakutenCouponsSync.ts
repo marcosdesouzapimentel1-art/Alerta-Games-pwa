@@ -146,10 +146,20 @@ export async function runRakutenCouponsSync() {
 
         const allCatalog = [...nuuvemDeals, ...hypeDeals];
 
-        for (const item of allCatalog) {
-            await db.collection('deals').doc(item.id).set(item, { merge: true });
-            dealsCount++;
-        }
+    // Limpa os deals antigos para evitar resíduos e links incorretos
+    const dealsRef = db.collection('deals');
+    const snapshot = await dealsRef.get();
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    // Insere o catálogo atualizado e limpo
+    for (const item of allCatalog) {
+        await dealsRef.doc(item.id).set(item);
+        dealsCount++;
+    }
 
         const durationMs = Date.now() - startTime;
         console.log(`[Rakuten Sync] Sincronização concluída: ${couponsCount} cupons, ${dealsCount} ofertas geradas automaticamente.`);
