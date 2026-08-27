@@ -3,16 +3,15 @@ import { Tag, Bell, Flame, Copy, Check, Star, ExternalLink } from 'lucide-react'
 import { useApp } from '../contexts/AppContext';
 
 interface CardPromocaoProps {
-  deal: any; // Aceita tanto GameDeal (Mocks) quanto Promotion (Firebase)
+  deal: any;
 }
 
 export const CardPromocao: React.FC<CardPromocaoProps> = ({ deal }) => {
-  const { setSelectedDeal, favoriteDealIds, toggleFavoriteDeal, showToast } = useApp();
+  const { setSelectedDeal, favoriteDealIds, toggleFavoriteDeal, showToast, setActiveTab } = useApp() as any;
   const [copiedCoupon, setCopiedCoupon] = React.useState(false);
 
   const isTracked = favoriteDealIds.includes(deal?.id);
 
-  // Mapeamento seguro de propriedades (Firebase Real vs Mocks) + Fallback para falhas
   const title = deal?.productTitle || deal?.gameTitle || 'Oferta Especial';
   const image = deal?.image || deal?.imageUrl || '';
   const store = deal?.store || 'Loja';
@@ -23,7 +22,6 @@ export const CardPromocao: React.FC<CardPromocaoProps> = ({ deal }) => {
   const isLow = deal?.isHistoricalLow || false;
   const rating = Number(deal?.rating ?? 5.0);
   
-  // Tratamento seguro de data
   const rawDate = deal?.expirationDate || deal?.expiresAt;
   const displayDate = rawDate 
     ? new Date(rawDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) 
@@ -36,6 +34,14 @@ export const CardPromocao: React.FC<CardPromocaoProps> = ({ deal }) => {
       setCopiedCoupon(true);
       showToast(`Cupom ${coupon} copiado!`);
       setTimeout(() => setCopiedCoupon(false), 2000);
+    }
+  };
+
+  const handleViewOffer = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedDeal(deal);
+    if (setActiveTab) {
+      setActiveTab('ofertas'); // Direciona para a aba de ofertas interna do app
     }
   };
 
@@ -136,7 +142,7 @@ export const CardPromocao: React.FC<CardPromocaoProps> = ({ deal }) => {
             </div>
           )}
 
-          {/* Pricing Block - Totalmente seguro com a função Number() */}
+          {/* Pricing Block */}
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-xl sm:text-2xl font-black font-heading text-emerald-400">
               R$ {currentPrice.toFixed(2).replace('.', ',')}
@@ -154,10 +160,13 @@ export const CardPromocao: React.FC<CardPromocaoProps> = ({ deal }) => {
           Validade: {displayDate}
         </span>
 
-        <span className="inline-flex items-center gap-1 text-emerald-400 font-bold hover:underline">
+        <button 
+          onClick={handleViewOffer}
+          className="inline-flex items-center gap-1 text-emerald-400 font-bold hover:underline cursor-pointer bg-transparent border-none p-0"
+        >
           <span>Ver Oferta</span>
           <ExternalLink className="w-3.5 h-3.5" />
-        </span>
+        </button>
       </div>
     </div>
   );
