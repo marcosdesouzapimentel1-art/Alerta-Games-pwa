@@ -10,11 +10,23 @@ export const DealDetailModal: React.FC = () => {
 
   const isTracked = favoriteDealIds.includes(selectedDeal.id);
 
+  // Mapeamento seguro para suportar tanto os dados do Firestore quanto os mocks
+  const title = (selectedDeal as any).productTitle || selectedDeal.gameTitle || 'Oferta Especial';
+  const image = (selectedDeal as any).image || selectedDeal.imageUrl || '';
+  const storeName = selectedDeal.store || 'Loja Parceira';
+  const discountPct = selectedDeal.discountPercent ?? 0;
+  const currentPrice = Number((selectedDeal as any).currentPrice ?? selectedDeal.discountPrice ?? 0);
+  const oldPrice = Number((selectedDeal as any).oldPrice ?? selectedDeal.originalPrice ?? 0);
+  const ratingVal = Number(selectedDeal.rating ?? 5.0);
+  const coupon = selectedDeal.couponCode || '';
+  const isLow = selectedDeal.isHistoricalLow || false;
+  const targetUrl = (selectedDeal as any).affiliateUrl || (selectedDeal as any).dealUrl || selectedDeal.link || '#';
+
   const handleCopyCoupon = () => {
-    if (selectedDeal.couponCode) {
-      navigator.clipboard.writeText(selectedDeal.couponCode);
+    if (coupon) {
+      navigator.clipboard.writeText(coupon);
       setCopied(true);
-      showToast(`Cupom ${selectedDeal.couponCode} copiado!`);
+      showToast(`Cupom ${coupon} copiado!`);
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -47,8 +59,8 @@ export const DealDetailModal: React.FC = () => {
           {/* Game Image Banner */}
           <div className="relative h-52 sm:h-60 w-full rounded-2xl overflow-hidden bg-slate-950">
             <img
-              src={selectedDeal.imageUrl}
-              alt={selectedDeal.gameTitle}
+              src={image}
+              alt={title}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
             />
@@ -57,9 +69,9 @@ export const DealDetailModal: React.FC = () => {
             <div className="absolute top-3 left-3 flex items-center gap-2">
               <span className="px-3 py-1 rounded-xl text-sm font-black bg-emerald-500 text-slate-950 flex items-center gap-1 shadow-lg shadow-emerald-500/30">
                 <Tag className="w-4 h-4 fill-current" />
-                -{selectedDeal.discountPercent}% OFF
+                -{discountPct}% OFF
               </span>
-              {selectedDeal.isHistoricalLow && (
+              {isLow && (
                 <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-amber-500 text-slate-950 flex items-center gap-1">
                   <Flame className="w-3.5 h-3.5 fill-current" />
                   MENOR PREÇO HISTÓRICO
@@ -72,16 +84,16 @@ export const DealDetailModal: React.FC = () => {
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">
               <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-emerald-400 border border-slate-700">
-                {selectedDeal.store}
+                {storeName}
               </span>
               <div className="flex items-center gap-1 text-amber-400 font-bold text-sm">
                 <Star className="w-4 h-4 fill-current" />
-                <span>{selectedDeal.rating.toFixed(1)} / 5.0</span>
+                <span>{ratingVal.toFixed(1)} / 5.0</span>
               </div>
             </div>
 
             <h2 className="text-xl sm:text-2xl font-black font-heading text-slate-100 mb-2">
-              {selectedDeal.gameTitle}
+              {title}
             </h2>
           </div>
 
@@ -91,28 +103,32 @@ export const DealDetailModal: React.FC = () => {
               <span className="text-xs text-slate-400 block mb-0.5">Preço Promocional:</span>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl sm:text-3xl font-black font-heading text-emerald-400">
-                  R$ {selectedDeal.discountPrice.toFixed(2).replace('.', ',')}
+                  R$ {currentPrice.toFixed(2).replace('.', ',')}
                 </span>
-                <span className="text-sm text-slate-500 line-through">
-                  R$ {selectedDeal.originalPrice.toFixed(2).replace('.', ',')}
-                </span>
+                {oldPrice > 0 && (
+                  <span className="text-sm text-slate-500 line-through">
+                    R$ {oldPrice.toFixed(2).replace('.', ',')}
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-xs text-slate-400 block">Economia de:</span>
-              <span className="text-sm font-bold text-emerald-400">
-                R$ {(selectedDeal.originalPrice - selectedDeal.discountPrice).toFixed(2).replace('.', ',')}
-              </span>
-            </div>
+            {oldPrice > currentPrice && (
+              <div className="text-right">
+                <span className="text-xs text-slate-400 block">Economia de:</span>
+                <span className="text-sm font-bold text-emerald-400">
+                  R$ {(oldPrice - currentPrice).toFixed(2).replace('.', ',')}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Coupon Option */}
-          {selectedDeal.couponCode && (
+          {coupon && (
             <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
               <div className="space-y-0.5">
                 <span className="text-xs text-slate-300 font-medium block">Cupom de Desconto Especial:</span>
-                <span className="text-sm font-mono font-extrabold text-emerald-400">{selectedDeal.couponCode}</span>
+                <span className="text-sm font-mono font-extrabold text-emerald-400">{coupon}</span>
               </div>
               <button
                 onClick={handleCopyCoupon}
@@ -145,7 +161,7 @@ export const DealDetailModal: React.FC = () => {
             </button>
 
             <a
-              href={selectedDeal.affiliateUrl || selectedDeal.dealUrl || selectedDeal.link}
+              href={targetUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 py-3 px-4 rounded-xl text-sm font-extrabold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
