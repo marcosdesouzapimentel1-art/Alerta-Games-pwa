@@ -9,6 +9,7 @@ import { runFreeGamesSync } from './services/freeGamesSync';
 import { getMessaging } from 'firebase-admin/messaging';
 import rakutenService from './rakutenService';
 
+
 const corsHandler = cors({ origin: true });
 const REGION = 'southamerica-east1';
 
